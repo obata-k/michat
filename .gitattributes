@@ -1,0 +1,2 @@
+libonnxruntime.1.13.1.dylib filter=lfs diff=lfs merge=lfs -text
+voicevox_core-0.14.2+cpu-cp38-abi3-macosx_11_0_arm64.whl filter=lfs diff=lfs merge=lfs -text
