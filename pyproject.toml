@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "python-environment"
+version = "1.0.0"
+description = "for kdxrookies 2023"
+authors = ["tokieda-k <tokieda-k@kadokawa.jp>", "gomi-t <gomi-t@kadokawa.jp>"]
+
+[tool.poetry.dependencies]
+python = "~3.10"
+fastapi = "~0"
+uvicorn = {extras = ["standard"], version = "~0"}
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.3"
+flake8 = "^6.0"
+mypy = "^1.2"
+black = "^23.3"
+isort = "^5.12"
+# 命名規則をチェックしてくれるflake8のプラグイン
+# cf. https://pypi.org/project/pep8-naming/
+pep8-naming = "~0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+# スタブファイルがないライブラリの型チェックをしない
+# cf. https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+[[tool.mypy.overrides]]
+module = [
+    'pytest.*'
+]
+ignore_missing_imports = true
+
+# Blackとコンフリクトしないための設定
+# cf. https://pycqa.github.io/isort/docs/configuration/black_compatibility.html
+[tool.isort]
+profile = "black"
