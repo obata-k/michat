@@ -100,16 +100,15 @@ def main():
     user_file = Path(args.file)
     output = Path(args.output)
 
-    # OpenAI API key
-
-    # GPT-3の生成するテキスト
     system_text = open(system_file, 'r').read()
     user_text = open(user_file, 'r').read()
 
+    # ChatGPTで文章の生成
     chat = ChatGPT(max_token_size)
     gen_text = chat.generate(system_text, user_text)
     print(gen_text)
 
+    # 音声出力
     audio = Audio(speaker_id)
     audio.transform(gen_text)
     audio.save_wav(output)
