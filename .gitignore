@@ -161,3 +161,12 @@ cython_debug/
 
 # generated wav file
 *.wav
+
+# whl
+*.whl
+
+# open_jtalk
+open_jtalk*/
+
+# onnxruntime
+libonnxruntime*
