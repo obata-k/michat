@@ -1,12 +1,12 @@
+import logging
 import os
 from argparse import ArgumentParser
 from pathlib import Path
 
 import openai
-import voicevox_core
 from dotenv import load_dotenv
 from playsound import playsound
-from voicevox_core import AccelerationMode, AudioQuery, VoicevoxCore
+from voicevox_core import AccelerationMode, VoicevoxCore
 
 open_jtalk_dict_dir = './open_jtalk_dic_utf_8-1.11'
 acceleration_mode = AccelerationMode.AUTO
@@ -78,8 +78,26 @@ class Audio:
         playsound(file)
 
 
+def setup_log(log_file, log_level):
+    level_num = getattr(logging, log_level.upper(), None)
+    if not isinstance(level_num, int):
+        raise ValueError('Invalid log level: %s' % log_level)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(level_num)
+    FORMAT = "%(asctime)s: [%(levelname)s] %(message)s"
+    logging.basicConfig(format=FORMAT)
+    if log_file == 'stdout':
+        stdout_handler = logging.StreamHandler()
+        logger.addHandler(stdout_handler)
+    else:
+        file_handler = logging.FileHandler(filename=log_file)
+        logger.addHandler(file_handler)
+    return logger
+
+
 def main():
-    parser = ArgumentParser(description="speaker")
+    progname = Path(__file__).name
+    parser = ArgumentParser(description=progname)
     parser.add_argument(
         '--file', help='message to submit to ChatGPT', default='input.txt')
     parser.add_argument(
@@ -87,12 +105,18 @@ def main():
         default='system.txt')
     parser.add_argument('-t', '--max-tokens',
                         help='Maximum tokens of ChatGPT response',
-                        default=1024)
+                        default=256)
     parser.add_argument('-s', '--speaker-id',
                         help='Speaker ID for the VOICEVOX model', default=3)
     parser.add_argument('-o', '--output', help='wav output',
                         default='output.wav')
+    parser.add_argument('-L', '--log-file', help='log output file',
+                        default='stdout')
+    parser.add_argument('-l', '--log-level', help='logger level',
+                        default='INFO')
     args = parser.parse_args()
+
+    logger = setup_log(log_file=args.log_file, log_level=args.log_level)
 
     speaker_id = args.speaker_id
     max_token_size = args.max_tokens
@@ -106,7 +130,7 @@ def main():
     # ChatGPTで文章の生成
     chat = ChatGPT(max_token_size)
     gen_text = chat.generate(system_text, user_text)
-    print(gen_text)
+    logger.info(gen_text)
 
     # 音声出力
     audio = Audio(speaker_id)
