@@ -15,7 +15,8 @@ acceleration_mode = AccelerationMode.AUTO
 class ChatGPT:
     def __init__(self, max_token_size):
         self.__max_token_size = max_token_size
-        dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+        env_root = Path(os.path.dirname(__file__)).parent
+        dotenv_path = os.path.join(env_root, ".env")
         load_dotenv(dotenv_path)
         openai.api_key = os.environ.get("OPENAI_API_KEY")
 
