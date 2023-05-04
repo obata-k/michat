@@ -16,6 +16,8 @@ from streamlit_webrtc import WebRtcMode, webrtc_streamer
 
 # stremlit status
 AUDIO_BUFFER = "audio_buffer"
+BOT_MESSAGES = "bot_messages"
+USR_MESSAGES = "usr_messages"
 
 # chatgpt
 SYSTEM = Path("system.txt")
@@ -36,12 +38,16 @@ class WebRTCRecorder:
 
         if AUDIO_BUFFER not in st.session_state:
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
+        if BOT_MESSAGES not in st.session_state:
+            st.session_state[BOT_MESSAGES] = []
+        if USR_MESSAGES not in st.session_state:
+            st.session_state[USR_MESSAGES] = []
 
     def listen(self):
-        status_box = st.empty()
-        ts = AudioTranscriber()
-        chat = ChatGPT(140)
-        speaker = Audio(3)
+        self.status_box = st.empty()
+
+        if not self.webrtc_ctx.state.playing:
+            return
 
         while True:
             if self.webrtc_ctx.audio_receiver:
@@ -50,10 +56,10 @@ class WebRTCRecorder:
                         timeout=0.5
                     )
                 except queue.Empty:
-                    status_box.warning("No frame arrived.")
+                    self.status_box.warning("No frame arrived.")
                     continue
 
-                status_box.info("何か聞いてね！")
+                self.status_box.info("何か聞いてね！")
 
                 sound_chunk = pydub.AudioSegment.empty()
                 for audio_frame in audio_frames:
@@ -70,16 +76,19 @@ class WebRTCRecorder:
             else:
                 break
 
+    def request(self):
         audio_buffer = st.session_state[AUDIO_BUFFER]
         audio_placeholder = st.empty()
+        ts = AudioTranscriber()
+        chat = ChatGPT(140)
+        speaker = Audio(3)
 
         if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
-            status_box.success("ばいばい！")
             try:
                 wav_bytes = io.BytesIO()
                 audio_buffer.export(wav_bytes, format="wav")
                 for t in ts.listen(wav_bytes):
-                    message(t, is_user=True)
+                    st.session_state[USR_MESSAGES].append(t)
                     with open(SYSTEM, "r") as sf:
                         system_text = sf.read()
                     generated = chat.generate(system_text, t)
@@ -101,22 +110,35 @@ class WebRTCRecorder:
                     )
                     audio_placeholder.empty()
                     audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
-                    message(generated)
+                    st.session_state[BOT_MESSAGES].append(generated)
             except Exception as e:
                 st.error(f"Error while transcripting: {e}")
 
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
 
+    def view(self):
+        container = st.container()
+        if st.session_state[BOT_MESSAGES]:
+            with container:
+                for i in range(len(st.session_state[BOT_MESSAGES])):
+                    message(
+                        st.session_state[USR_MESSAGES][i],
+                        is_user=True,
+                        key=str(i) + "_usr",
+                    )
+                    message(st.session_state[BOT_MESSAGES][i], key=str(i))
+
 
 def app():
     st.title("michat")
-    st.write("ミクとお話しよ！")
 
     st_webrtc_logger = logging.getLogger("streamlit_webrtc")
     st_webrtc_logger.setLevel(logging.INFO)
 
     webrtc = WebRTCRecorder()
     webrtc.listen()
+    webrtc.request()
+    webrtc.view()
 
 
 if __name__ == "__main__":
