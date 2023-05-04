@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "python-environment"
+name = "michat"
 version = "1.0.0"
-description = "for kdxrookies 2023"
-authors = ["tokieda-k <tokieda-k@kadokawa.jp>", "gomi-t <gomi-t@kadokawa.jp>"]
+description = "talk with ChatGPT"
+authors = ["obata-k <obata-k@kadoakwa.jp>"]
 
 [tool.poetry.dependencies]
 python = "~3.10"
