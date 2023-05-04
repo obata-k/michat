@@ -22,6 +22,9 @@ class Transcriber(metaclass=ABCMeta):
 
 
 class VoiceTranscriber(Transcriber):
+    def __init__(self):
+        super().__init__()
+
     @classmethod
     def default_input(cls):
         return sr.Microphone()
@@ -29,6 +32,7 @@ class VoiceTranscriber(Transcriber):
     def listen(self, _from=None):
         if _from is None:
             _from = self.default_input()
+
         with _from as source:
             self.recognizer.adjust_for_ambient_noise(source)
 
@@ -50,8 +54,8 @@ class VoiceTranscriber(Transcriber):
 
 class AudioTranscriber(Transcriber):
     def __init__(self, wav=None):
-        self.recognizer = sr.Recognizer()
         self.wav = wav
+        super().__init__()
 
     @classmethod
     def default_file(cls):
