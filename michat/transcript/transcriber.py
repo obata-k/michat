@@ -37,14 +37,14 @@ class VoiceTranscriber(Transcriber):
                     try:
                         audio = self.recognizer.listen(source)
                         text = self.recognizer.recognize_google(audio, language="ja-JP")
-                        print(text)
+                        yield text
                     except sr.UnknownValueError:
                         print("よくわかりません...")
                     except sr.RequestError:
                         print("ごめんなさい！リクエストに失敗しました...")
 
             except KeyboardInterrupt:
-                print("ばいばい、またね")
+                return "ばいばい、またね"
 
 
 class AudioTranscriber(Transcriber):
@@ -68,4 +68,4 @@ class AudioTranscriber(Transcriber):
             audio = self.recognizer.record(source)
 
         text = self.recognizer.recognize_google(audio, language="ja-JP")
-        print(text)
+        return text
