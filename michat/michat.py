@@ -2,6 +2,7 @@ from michat.speak import Audio, ChatGPT, setup_log
 from michat.transcript import VoiceTranscriber
 from argparse import ArgumentParser
 from pathlib import Path
+import speech_recognition as sr
 
 
 def main():
@@ -35,7 +36,17 @@ def main():
     audio = Audio(speaker_id)
     chat = ChatGPT(max_token_size)
     system_text = open(system_file, "r").read()
+
+    logger.info("Listening...")
     for user_text in ts.listen():
+        if isinstance(user_text, sr.UnknownValueError):
+            logger.error("わかりません...")
+        elif isinstance(user_text, sr.RequestError):
+            logger.error("ごめんなさい！リクエストに失敗しました...")
+        elif isinstance(user_text, Exception):
+            logger.error(user_text)
+            raise user_text
+
         gen_text = chat.generate(system_text, user_text)
         logger.info(gen_text)
 

@@ -4,9 +4,10 @@ from pathlib import Path
 
 
 class Transcriber(metaclass=ABCMeta):
-    def __init__(self):
+    def __init__(self, input=None, logger=None):
         self.recognizer = sr.Recognizer()
-        self.input = None
+        self.input = input
+        self.logger = logger
 
     @property
     def input(self):
@@ -15,6 +16,14 @@ class Transcriber(metaclass=ABCMeta):
     @input.setter
     def input(self, v):
         self._input = v
+
+    @property
+    def logger(self):
+        return self._logger
+
+    @logger.setter
+    def logger(self, lg):
+        self._logger = lg
 
     @abstractmethod
     def listen(self, _from):
@@ -32,20 +41,18 @@ class VoiceTranscriber(Transcriber):
         with _from as source:
             self.recognizer.adjust_for_ambient_noise(source)
 
-            print("Listening...")
             try:
                 while True:
                     try:
                         audio = self.recognizer.listen(source)
                         text = self.recognizer.recognize_google(audio, language="ja-JP")
                         yield text
-                    except sr.UnknownValueError:
-                        print("よくわかりません...")
-                    except sr.RequestError:
-                        print("ごめんなさい！リクエストに失敗しました...")
+                    except Exception as e:
+                        yield e
 
             except KeyboardInterrupt:
-                return "ばいばい、またね"
+                yield "ばいばい、またね"
+                return
 
 
 class AudioTranscriber(Transcriber):
