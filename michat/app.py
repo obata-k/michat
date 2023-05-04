@@ -1,12 +1,15 @@
 import io
+import logging
+import base64
 import time
 import numpy as np
 import queue
 from pathlib import Path
+from streamlit_chat import message
 
 import pydub
 import streamlit as st
-from lib.speak import ChatGPT
+from lib.speak import ChatGPT, Audio
 from lib.transcript import AudioTranscriber
 from streamlit_webrtc import WebRtcMode, webrtc_streamer
 
@@ -16,6 +19,7 @@ AUDIO_BUFFER = "audio_buffer"
 
 # chatgpt
 SYSTEM = Path("system.txt")
+OUTPUT = Path("output.wav")
 
 
 class WebRTCRecorder:
@@ -35,9 +39,9 @@ class WebRTCRecorder:
 
     def listen(self):
         status_box = st.empty()
-        text_output = st.empty()
         ts = AudioTranscriber()
         chat = ChatGPT(140)
+        speaker = Audio(3)
 
         while True:
             if self.webrtc_ctx.audio_receiver:
@@ -67,6 +71,7 @@ class WebRTCRecorder:
                 break
 
         audio_buffer = st.session_state[AUDIO_BUFFER]
+        audio_placeholder = st.empty()
 
         if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
             status_box.success("ばいばい！")
@@ -74,9 +79,29 @@ class WebRTCRecorder:
                 wav_bytes = io.BytesIO()
                 audio_buffer.export(wav_bytes, format="wav")
                 for t in ts.listen(wav_bytes):
-                    system_text = open(SYSTEM, "r").read()
+                    message(t, is_user=True)
+                    with open(SYSTEM, "r") as sf:
+                        system_text = sf.read()
                     generated = chat.generate(system_text, t)
-                    text_output.markdown(f"**Text**: {generated}")
+                    speaker.transform(generated)
+                    speaker.save_wav(OUTPUT)
+                    with open(OUTPUT, "rb") as ow:
+                        wav_content = ow.read()
+                    audio_str = "data:audio/ogg;base64,%s" % (
+                        base64.b64encode(wav_content).decode()
+                    )
+                    audio_html = (
+                        """
+                        <audio autoplay=True>
+                        <source src="%s" type="audio/ogg" autoplay=True>
+                        Your browser does not support the audio element.
+                        </audio>
+                    """
+                        % audio_str
+                    )
+                    audio_placeholder.empty()
+                    audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
+                    message(generated)
             except Exception as e:
                 st.error(f"Error while transcripting: {e}")
 
@@ -86,6 +111,9 @@ class WebRTCRecorder:
 def app():
     st.title("michat")
     st.write("ミクとお話しよ！")
+
+    st_webrtc_logger = logging.getLogger("streamlit_webrtc")
+    st_webrtc_logger.setLevel(logging.INFO)
 
     webrtc = WebRTCRecorder()
     webrtc.listen()
