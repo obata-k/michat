@@ -16,6 +16,8 @@ ChatGPTの出力を初音ミクやカゲプロのエネっぽい口調で音声�
 
 ## Usage
 
+### CLI
+
 ```
 $ python3 speak.py --help          
 usage: speak.py [-h] [--file FILE] [--file-system FILE_SYSTEM] [-t MAX_TOKENS] [-s SPEAKER_ID]
@@ -38,4 +40,10 @@ options:
                         log output file
   -l LOG_LEVEL, --log-level LOG_LEVEL
                         logger level
+```
+
+### Web (local)
+
+```
+$ streamlit run michat/app.py
 ```
