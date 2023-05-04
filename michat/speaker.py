@@ -1,6 +1,7 @@
-from lib.speak import setup_log, Audio, ChatGPT
 from argparse import ArgumentParser
 from pathlib import Path
+
+from lib.speak import Audio, ChatGPT, setup_log
 
 
 def main():
