@@ -1,8 +1,6 @@
-from michat.speak import Audio, ChatGPT, setup_log
-from michat.transcript import VoiceTranscriber
+from lib.speak import setup_log, Audio, ChatGPT
 from argparse import ArgumentParser
 from pathlib import Path
-import speech_recognition as sr
 
 
 def main():
@@ -30,26 +28,23 @@ def main():
     speaker_id = args.speaker_id
     max_token_size = args.max_tokens
     system_file = Path(args.file_system)
+    user_file = Path(args.file)
     output = Path(args.output)
 
-    ts = VoiceTranscriber()
-    audio = Audio(speaker_id)
-    chat = ChatGPT(max_token_size)
     system_text = open(system_file, "r").read()
+    user_text = open(user_file, "r").read()
 
-    logger.info("Listening...")
-    for user_text in ts.listen():
-        if isinstance(user_text, sr.UnknownValueError):
-            logger.error("わかりません...")
-        elif isinstance(user_text, sr.RequestError):
-            logger.error("ごめんなさい！リクエストに失敗しました...")
-        elif isinstance(user_text, Exception):
-            logger.error(user_text)
-            raise user_text
+    # ChatGPTで文章の生成
+    chat = ChatGPT(max_token_size)
+    gen_text = chat.generate(system_text, user_text)
+    logger.info(gen_text)
 
-        gen_text = chat.generate(system_text, user_text)
-        logger.info(gen_text)
+    # 音声出力
+    audio = Audio(speaker_id)
+    audio.transform(gen_text)
+    audio.save_wav(output)
+    audio.play(output)
 
-        audio.transform(gen_text)
-        audio.save_wav(output)
-        audio.play(output)
+
+if __name__ == "__main__":
+    main()
