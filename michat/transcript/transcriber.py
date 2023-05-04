@@ -1,10 +1,11 @@
 import speech_recognition as sr
 from abc import ABCMeta, abstractmethod
+from pathlib import Path
 
 
 class Transcriber(metaclass=ABCMeta):
-    def __init__(self, rc):
-        self.recognizer = rc
+    def __init__(self):
+        self.recognizer = sr.Recognizer()
         self.input = None
 
     @property
@@ -48,9 +49,9 @@ class VoiceTranscriber(Transcriber):
 
 
 class AudioTranscriber(Transcriber):
-    def __init__(self, rc, wav=None):
+    def __init__(self, wav=None):
+        self.recognizer = sr.Recognizer()
         self.wav = wav
-        self.recognizer = rc
 
     @classmethod
     def default_file(cls):
@@ -64,6 +65,9 @@ class AudioTranscriber(Transcriber):
     def listen(self, _from=None):
         if _from is None:
             _from = self.default_input()
+            self.wav = self.default_file()
+        if not Path(self.wav).exists():
+            raise FileNotFoundError
         with _from as source:
             audio = self.recognizer.record(source)
 

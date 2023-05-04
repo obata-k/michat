@@ -2,7 +2,6 @@ from michat.speak import Audio, ChatGPT, setup_log
 from michat.transcript import VoiceTranscriber
 from argparse import ArgumentParser
 from pathlib import Path
-import speech_recognition as sr
 
 
 def main():
@@ -32,7 +31,7 @@ def main():
     system_file = Path(args.file_system)
     output = Path(args.output)
 
-    ts = VoiceTranscriber(sr.Recognizer())
+    ts = VoiceTranscriber()
     audio = Audio(speaker_id)
     chat = ChatGPT(max_token_size)
     system_text = open(system_file, "r").read()
