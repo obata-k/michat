@@ -30,10 +30,8 @@ def main():
     speaker_id = args.speaker_id
     max_token_size = args.max_tokens
     system_file = Path(args.file_system)
-    # user_file = Path(args.file)
     output = Path(args.output)
 
-    # user_text = open(user_file, "r").read()
     ts = VoiceTranscriber(sr.Recognizer())
     audio = Audio(speaker_id)
     chat = ChatGPT(max_token_size)
