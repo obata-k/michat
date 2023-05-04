@@ -131,6 +131,7 @@ class WebRTCRecorder:
 
 def app():
     st.title("michat")
+    st.subheader("美少女アシスタント - micha")
 
     st_webrtc_logger = logging.getLogger("streamlit_webrtc")
     st_webrtc_logger.setLevel(logging.INFO)
