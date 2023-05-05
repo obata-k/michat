@@ -76,9 +76,27 @@ class WebRTCRecorder:
             else:
                 break
 
+    def __background_play(self, file):
+        audio_placeholder = st.empty()
+        with open(file, "rb") as ow:
+            wav_content = ow.read()
+        audio_str = "data:audio/ogg;base64,%s" % (
+            base64.b64encode(wav_content).decode()
+        )
+        audio_html = (
+            """
+            <audio autoplay=True>
+            <source src="%s" type="audio/ogg" autoplay=True>
+            Your browser does not support the audio element.
+            </audio>
+        """
+            % audio_str
+        )
+        audio_placeholder.empty()
+        audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
+
     def request(self):
         audio_buffer = st.session_state[AUDIO_BUFFER]
-        audio_placeholder = st.empty()
         ts = AudioTranscriber()
         chat = ChatGPT(140)
         speaker = Audio(3)
@@ -94,22 +112,7 @@ class WebRTCRecorder:
                 generated = chat.generate(system_text, t)
                 speaker.transform(generated)
                 speaker.save_wav(OUTPUT)
-                with open(OUTPUT, "rb") as ow:
-                    wav_content = ow.read()
-                audio_str = "data:audio/ogg;base64,%s" % (
-                    base64.b64encode(wav_content).decode()
-                )
-                audio_html = (
-                    """
-                    <audio autoplay=True>
-                    <source src="%s" type="audio/ogg" autoplay=True>
-                    Your browser does not support the audio element.
-                    </audio>
-                """
-                    % audio_str
-                )
-                audio_placeholder.empty()
-                audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
+                self.__background_play(OUTPUT)
                 st.session_state[BOT_MESSAGES].append(generated)
             except Exception as e:
                 st.error(f"Error while transcripting: {e}")
