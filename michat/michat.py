@@ -1,8 +1,10 @@
-from michat.speak import Audio, ChatGPT, setup_log
-from michat.transcript import VoiceTranscriber
 from argparse import ArgumentParser
 from pathlib import Path
+
 import speech_recognition as sr
+
+from michat.speak import Audio, ChatGPT, setup_log
+from michat.transcript import VoiceTranscriber
 
 
 def main():

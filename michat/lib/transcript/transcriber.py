@@ -1,6 +1,8 @@
-import speech_recognition as sr
+import io
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
+
+import speech_recognition as sr
 
 
 class Transcriber(metaclass=ABCMeta):
@@ -36,7 +38,7 @@ class VoiceTranscriber(Transcriber):
         with _from as source:
             self.recognizer.adjust_for_ambient_noise(source)
 
-            print("Listening...")
+            yield "Listening..."
             try:
                 while True:
                     try:
@@ -44,17 +46,18 @@ class VoiceTranscriber(Transcriber):
                         text = self.recognizer.recognize_google(audio, language="ja-JP")
                         yield text
                     except sr.UnknownValueError:
-                        print("よくわかりません...")
+                        yield "よくわかりません..."
                     except sr.RequestError:
-                        print("ごめんなさい！リクエストに失敗しました...")
+                        yield "ごめんなさい！リクエストに失敗しました..."
 
             except KeyboardInterrupt:
-                return "ばいばい、またね"
+                yield "ばいばい、またね"
 
 
 class AudioTranscriber(Transcriber):
     def __init__(self, wav=None):
         self.wav = wav
+        self.audio_file = None
         super().__init__()
 
     @classmethod
@@ -67,13 +70,21 @@ class AudioTranscriber(Transcriber):
         return sr.AudioFile(file)
 
     def listen(self, _from=None):
-        if _from is None:
-            _from = self.default_input()
-            self.wav = self.default_file()
-        if not Path(self.wav).exists():
-            raise FileNotFoundError
-        with _from as source:
-            audio = self.recognizer.record(source)
+        try:
+            if _from is None:
+                self.audio_file = self.default_input()
+            elif isinstance(_from, io.BytesIO):
+                self.audio_file = sr.AudioFile(_from)
 
-        text = self.recognizer.recognize_google(audio, language="ja-JP")
-        return text
+            if self.audio_file is None:
+                self.audio_file = sr.AudioFile(self.wav)
+
+            with self.audio_file as source:
+                audio = self.recognizer.record(source)
+
+            text = self.recognizer.recognize_google(audio, language="ja-JP")
+            return text
+        except sr.UnknownValueError:
+            return "よくわかりません..."
+        except sr.RequestError:
+            return "ごめんなさい！リクエストに失敗しました..."
