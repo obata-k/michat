@@ -57,7 +57,7 @@ class VoiceTranscriber(Transcriber):
 class AudioTranscriber(Transcriber):
     def __init__(self, wav=None):
         self.wav = wav
-        self.audio_stream = None
+        self.audio_file = None
         super().__init__()
 
     @classmethod
@@ -72,14 +72,14 @@ class AudioTranscriber(Transcriber):
     def listen(self, _from=None):
         try:
             if _from is None:
-                self.audio_stream = self.default_input()
+                self.audio_file = self.default_input()
             elif isinstance(_from, io.BytesIO):
-                self.audio_stream = sr.AudioFile(_from)
+                self.audio_file = sr.AudioFile(_from)
 
-            if self.audio_stream is None:
-                self.audio_stream = sr.AudioFile(self.wav)
+            if self.audio_file is None:
+                self.audio_file = sr.AudioFile(self.wav)
 
-            with self.audio_stream as source:
+            with self.audio_file as source:
                 audio = self.recognizer.record(source)
 
             text = self.recognizer.recognize_google(audio, language="ja-JP")
