@@ -87,30 +87,30 @@ class WebRTCRecorder:
             try:
                 wav_bytes = io.BytesIO()
                 audio_buffer.export(wav_bytes, format="wav")
-                for t in ts.listen(wav_bytes):
-                    st.session_state[USR_MESSAGES].append(t)
-                    with open(SYSTEM, "r") as sf:
-                        system_text = sf.read()
-                    generated = chat.generate(system_text, t)
-                    speaker.transform(generated)
-                    speaker.save_wav(OUTPUT)
-                    with open(OUTPUT, "rb") as ow:
-                        wav_content = ow.read()
-                    audio_str = "data:audio/ogg;base64,%s" % (
-                        base64.b64encode(wav_content).decode()
-                    )
-                    audio_html = (
-                        """
-                        <audio autoplay=True>
-                        <source src="%s" type="audio/ogg" autoplay=True>
-                        Your browser does not support the audio element.
-                        </audio>
+                t = ts.listen(wav_bytes)
+                st.session_state[USR_MESSAGES].append(t)
+                with open(SYSTEM, "r") as sf:
+                    system_text = sf.read()
+                generated = chat.generate(system_text, t)
+                speaker.transform(generated)
+                speaker.save_wav(OUTPUT)
+                with open(OUTPUT, "rb") as ow:
+                    wav_content = ow.read()
+                audio_str = "data:audio/ogg;base64,%s" % (
+                    base64.b64encode(wav_content).decode()
+                )
+                audio_html = (
                     """
-                        % audio_str
-                    )
-                    audio_placeholder.empty()
-                    audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
-                    st.session_state[BOT_MESSAGES].append(generated)
+                    <audio autoplay=True>
+                    <source src="%s" type="audio/ogg" autoplay=True>
+                    Your browser does not support the audio element.
+                    </audio>
+                """
+                    % audio_str
+                )
+                audio_placeholder.empty()
+                audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
+                st.session_state[BOT_MESSAGES].append(generated)
             except Exception as e:
                 st.error(f"Error while transcripting: {e}")
 

@@ -83,8 +83,8 @@ class AudioTranscriber(Transcriber):
                 audio = self.recognizer.record(source)
 
             text = self.recognizer.recognize_google(audio, language="ja-JP")
-            yield text
+            return text
         except sr.UnknownValueError:
-            yield "よくわかりません..."
+            return "よくわかりません..."
         except sr.RequestError:
-            yield "ごめんなさい！リクエストに失敗しました..."
+            return "ごめんなさい！リクエストに失敗しました..."
