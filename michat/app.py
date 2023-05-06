@@ -10,7 +10,7 @@ from streamlit_chat import message
 
 import pydub
 import streamlit as st
-from lib.speak import ChatGPT, Audio
+from lib.speak import ChatGPT, ChatGPTFeature, Audio, system_text
 from lib.transcript import AudioTranscriber
 from streamlit_webrtc import WebRtcMode, webrtc_streamer
 
@@ -23,13 +23,13 @@ IS_READ = "is_read"
 VISIBILITY = "visibility"
 
 # chatgpt
-SYSTEM = Path("system.txt")
 OUTPUT = Path("output.wav")
 
 
 class WebRTCRecorder:
     def __init__(self):
-        self.speaker_id = 3
+        self.speaker_id = 4
+        self.system_feature = ChatGPTFeature.ZUNDAMON
         self.max_token_size = 512
         self.mode = "chat"  # 'chat' or 'image'
 
@@ -135,9 +135,9 @@ class WebRTCRecorder:
 
         if not self.webrtc_ctx.state.playing:
             try:
-                with open(SYSTEM, "r") as sf:
-                    system_text = sf.read()
-                generated = chat.generate(system_text, text)
+                st.session_state.disabled = True
+                system = system_text(self.system_feature)
+                generated = chat.generate(system, text)
                 speaker.transform(generated)
                 speaker.save_wav(OUTPUT)
                 self.__background_play(OUTPUT)
@@ -145,6 +145,8 @@ class WebRTCRecorder:
                 st.session_state[IS_READ] = True
             except Exception as e:
                 st.error(f"Error while request and play: {e}")
+            finally:
+                st.session_state.disabled = False
             return generated
 
     def voice_options(self):
@@ -171,6 +173,7 @@ class WebRTCRecorder:
         option = st.selectbox(
             "音声",
             (list(speakers.keys())),
+            index=self.speaker_id,
             label_visibility=st.session_state.visibility,
             disabled=st.session_state.disabled,
         )
@@ -178,6 +181,15 @@ class WebRTCRecorder:
 
     def mode_options(self):
         self.mode = st.radio("モード選択", ("chat", "image"))
+
+    def feautre_option(self):
+        feature = st.selectbox(
+            "口調",
+            (ChatGPTFeature.get_values()),
+            label_visibility=st.session_state.visibility,
+            disabled=st.session_state.disabled,
+        )
+        self.system_feature = ChatGPTFeature.value_of(feature)
 
     def chat_view(self):
         container = st.container()
@@ -214,6 +226,7 @@ def app():
     webrtc = WebRTCRecorder()
     webrtc.mode_options()
     webrtc.voice_options()
+    webrtc.feautre_option()
 
     webrtc.context()
     webrtc.listen()
