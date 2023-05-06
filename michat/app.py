@@ -19,6 +19,7 @@ from streamlit_webrtc import WebRtcMode, webrtc_streamer
 AUDIO_BUFFER = "audio_buffer"
 BOT_MESSAGES = "bot_messages"
 USR_MESSAGES = "usr_messages"
+IS_READ = "is_read"
 VISIBILITY = "visibility"
 
 # chatgpt
@@ -38,6 +39,8 @@ class WebRTCRecorder:
             st.session_state[BOT_MESSAGES] = []
         if USR_MESSAGES not in st.session_state:
             st.session_state[USR_MESSAGES] = []
+        if IS_READ not in st.session_state:
+            st.session_state[IS_READ] = False
         if VISIBILITY not in st.session_state:
             st.session_state.visibility = "visible"
             st.session_state.disabled = False
@@ -105,11 +108,9 @@ class WebRTCRecorder:
         audio_placeholder.empty()
         audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
 
-    def request(self):
+    def to_text(self):
         audio_buffer = st.session_state[AUDIO_BUFFER]
         ts = AudioTranscriber()
-        chat = ChatGPT(self.max_token_size)
-        speaker = Audio(self.speaker_id)
 
         if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
             try:
@@ -117,17 +118,33 @@ class WebRTCRecorder:
                 audio_buffer.export(wav_bytes, format="wav")
                 t = ts.listen(wav_bytes)
                 st.session_state[USR_MESSAGES].append(t)
-                with open(SYSTEM, "r") as sf:
-                    system_text = sf.read()
-                generated = chat.generate(system_text, t)
-                speaker.transform(generated)
-                speaker.save_wav(OUTPUT)
-                self.__background_play(OUTPUT)
-                st.session_state[BOT_MESSAGES].append(generated)
+                st.session_state[IS_READ] = False
             except Exception as e:
                 st.error(f"Error while transcripting: {e}")
 
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
+
+    def generate_and_play(self):
+        chat = ChatGPT(self.max_token_size)
+        speaker = Audio(self.speaker_id)
+        isread = st.session_state[IS_READ]
+        if isread or len(st.session_state[USR_MESSAGES]) == 0:
+            return
+        text = st.session_state[USR_MESSAGES][-1]
+
+        if not self.webrtc_ctx.state.playing:
+            try:
+                with open(SYSTEM, "r") as sf:
+                    system_text = sf.read()
+                generated = chat.generate(system_text, text)
+                speaker.transform(generated)
+                speaker.save_wav(OUTPUT)
+                self.__background_play(OUTPUT)
+                st.session_state[BOT_MESSAGES].append(generated)
+                st.session_state[IS_READ] = True
+            except Exception as e:
+                st.error(f"Error while request and play: {e}")
+            return generated
 
     def voice_options(self):
         speakers = {
@@ -196,13 +213,16 @@ def app():
     webrtc = WebRTCRecorder()
     webrtc.mode_options()
     webrtc.voice_options()
+
     webrtc.context()
+    webrtc.listen()
+    webrtc.to_text()
+    webrtc.generate_and_play()
+
     if webrtc.mode == "chat":
         webrtc.chat_view()
     else:
         webrtc.image()
-    webrtc.listen()
-    webrtc.request()
 
 
 if __name__ == "__main__":
