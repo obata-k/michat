@@ -18,6 +18,7 @@ from streamlit_webrtc import WebRtcMode, webrtc_streamer
 AUDIO_BUFFER = "audio_buffer"
 BOT_MESSAGES = "bot_messages"
 USR_MESSAGES = "usr_messages"
+VISIBILITY = "visibility"
 
 # chatgpt
 SYSTEM = Path("system.txt")
@@ -35,6 +36,8 @@ class WebRTCRecorder:
             media_stream_constraints={"video": False, "audio": True},
             audio_receiver_size=1024,
         )
+        self.speaker_id = 3
+        self.max_token_size = 512
 
         if AUDIO_BUFFER not in st.session_state:
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
@@ -42,6 +45,9 @@ class WebRTCRecorder:
             st.session_state[BOT_MESSAGES] = []
         if USR_MESSAGES not in st.session_state:
             st.session_state[USR_MESSAGES] = []
+        if VISIBILITY not in st.session_state:
+            st.session_state.visibility = "visible"
+            st.session_state.disabled = False
 
     def listen(self):
         self.status_box = st.empty()
@@ -98,8 +104,8 @@ class WebRTCRecorder:
     def request(self):
         audio_buffer = st.session_state[AUDIO_BUFFER]
         ts = AudioTranscriber()
-        chat = ChatGPT(512)
-        speaker = Audio(3)
+        chat = ChatGPT(self.max_token_size)
+        speaker = Audio(self.speaker_id)
 
         if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
             try:
@@ -119,7 +125,36 @@ class WebRTCRecorder:
 
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
 
-    def view(self):
+    def voice_options(self):
+        speakers = {
+            "四国めたん（あまあま）": 0,
+            "四国めたん（ノーマル）": 2,
+            "四国めたん（ツンツン）": 6,
+            "四国めたん（セクシー）": 4,
+            "ずんだもん（ノーマル）": 3,
+            "ずんだもん（あまあま）": 1,
+            "ずんだもん（ツンツン）": 7,
+            "ずんだもん（セクシー）": 5,
+            "春日部つむぎ（ノーマル）": 8,
+            "雨晴はう（ノーマル）": 10,
+            "玄野武宏（ノーマル）": 11,
+            "白上虎太郎（ノーマル）": 12,
+            "青山龍星（ノーマル）": 13,
+            "冥鳴ひまり（ノーマル）": 14,
+            "九州そら（あまあま）": 15,
+            "九州そら（ツンツン）": 18,
+            "九州そら（セクシー）": 17,
+            "九州そら（ささやき）": 19,
+        }
+        option = st.selectbox(
+            "音声",
+            (list(speakers.keys())),
+            label_visibility=st.session_state.visibility,
+            disabled=st.session_state.disabled,
+        )
+        self.speaker_id = speakers[option]
+
+    def chat_view(self):
         container = st.container()
         if st.session_state[BOT_MESSAGES]:
             with container:
@@ -140,9 +175,10 @@ def app():
     st_webrtc_logger.setLevel(logging.INFO)
 
     webrtc = WebRTCRecorder()
+    webrtc.voice_options()
     webrtc.listen()
     webrtc.request()
-    webrtc.view()
+    webrtc.chat_view()
 
 
 if __name__ == "__main__":
