@@ -1,6 +1,7 @@
 import io
 import logging
 import base64
+from PIL import Image
 import time
 import numpy as np
 import queue
@@ -123,16 +124,28 @@ class WebRTCRecorder:
         container = st.container()
         if st.session_state[BOT_MESSAGES]:
             with container:
-                for i in range(len(st.session_state[BOT_MESSAGES]) - 1, 0, -1):
+                for i in range(len(st.session_state[BOT_MESSAGES]) - 1, -1, -1):
+                    message(st.session_state[BOT_MESSAGES][i], key=str(i))
                     message(
                         st.session_state[USR_MESSAGES][i],
                         is_user=True,
                         key=str(i) + "_usr",
                     )
-                    message(st.session_state[BOT_MESSAGES][i], key=str(i))
+
+    def image(self):
+        image = Image.open("images/zunda-normal.png")
+        col1, col2, col3 = st.columns([1, 6, 1])
+        with col1:
+            st.write("")
+        with col2:
+            st.image(image, width=500)
+        with col3:
+            st.write("")
 
 
 def app():
+    image = Image.open("images/zunda-icon.png")
+    st.set_page_config(page_title="michat - DEMO", page_icon=image)
     st.title("michat")
     st.subheader("美少女アシスタント - micha")
 
@@ -142,6 +155,7 @@ def app():
     webrtc = WebRTCRecorder()
     webrtc.listen()
     webrtc.request()
+    webrtc.image()
     webrtc.view()
 
 
