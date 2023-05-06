@@ -2,6 +2,7 @@ import logging
 import os
 from argparse import ArgumentParser
 from pathlib import Path
+from enum import Enum
 
 import openai
 from dotenv import load_dotenv
@@ -10,6 +11,27 @@ from voicevox_core import AccelerationMode, VoicevoxCore
 
 open_jtalk_dict_dir = "./open_jtalk_dic_utf_8-1.11"
 acceleration_mode = AccelerationMode.AUTO
+
+
+class ChatGPTFeature(Enum):
+    ZUNDAMON = "ずんだもん"
+    ENE = "エネ"
+    MIKU = "初音ミク"
+
+    @classmethod
+    def get_names(cls) -> list:
+        return [i.name for i in cls]
+
+    @classmethod
+    def get_values(cls) -> list:
+        return [i.value for i in cls]
+
+    @classmethod
+    def value_of(cls, target_value):
+        for e in ChatGPTFeature:
+            if e.value == target_value:
+                return e
+        raise ValueError("{} is not a valid feature".format(target_value))
 
 
 class ChatGPT:
@@ -96,3 +118,18 @@ def setup_log(log_file, log_level):
         logger.addHandler(file_handler)
     logger.propagate = False
     return logger
+
+
+def system_text(feature=ChatGPTFeature.ZUNDAMON):
+    if feature is ChatGPTFeature.ZUNDAMON:
+        system = Path("system-zundamon.txt")
+    elif feature is ChatGPTFeature.ENE:
+        system = Path("system-ene.txt")
+    elif feature is ChatGPTFeature.MIKU:
+        system = Path("system-miku.txt")
+    else:
+        raise ValueError("invalid ChatGPT feature was set")
+
+    with open(system, "r") as f:
+        text = f.read()
+    return text
