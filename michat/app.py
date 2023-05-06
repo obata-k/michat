@@ -123,7 +123,7 @@ class WebRTCRecorder:
         container = st.container()
         if st.session_state[BOT_MESSAGES]:
             with container:
-                for i in range(len(st.session_state[BOT_MESSAGES])):
+                for i in range(len(st.session_state[BOT_MESSAGES]) - 1, 0, -1):
                     message(
                         st.session_state[USR_MESSAGES][i],
                         is_user=True,
