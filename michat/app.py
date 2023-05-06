@@ -98,7 +98,7 @@ class WebRTCRecorder:
     def request(self):
         audio_buffer = st.session_state[AUDIO_BUFFER]
         ts = AudioTranscriber()
-        chat = ChatGPT(140)
+        chat = ChatGPT(1024)
         speaker = Audio(3)
 
         if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
