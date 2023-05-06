@@ -116,13 +116,14 @@ class WebRTCRecorder:
             try:
                 wav_bytes = io.BytesIO()
                 audio_buffer.export(wav_bytes, format="wav")
-                t = ts.listen(wav_bytes)
-                st.session_state[USR_MESSAGES].append(t)
+                text = ts.listen(wav_bytes)
+                st.session_state[USR_MESSAGES].append(text)
                 st.session_state[IS_READ] = False
             except Exception as e:
                 st.error(f"Error while transcripting: {e}")
 
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
+            return text
 
     def generate_and_play(self):
         chat = ChatGPT(self.max_token_size)
