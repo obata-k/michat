@@ -35,18 +35,18 @@ def main():
     system_text = open(system_file, "r").read()
     user_texts = [open(Path(user_file), "r").read() for user_file in user_files]
 
-    # ChatGPTで文章の生成
     chat = ChatGPT(max_token_size)
+    history = None
     for user_text in user_texts:
-        gen_text, history = chat.generate(system_text, user_text)
+        # ChatGPTで文章の生成
+        gen_text, history = chat.generate(system_text, user_text, history)
         logger.info(gen_text)
         logger.info(history)
-
-    # 音声出力
-    audio = Audio(speaker_id)
-    audio.transform(gen_text)
-    audio.save_wav(output)
-    audio.play(output)
+        # 音声出力
+        audio = Audio(speaker_id)
+        audio.transform(gen_text)
+        audio.save_wav(output)
+        audio.play(output)
 
 
 if __name__ == "__main__":

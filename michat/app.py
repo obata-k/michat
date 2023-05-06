@@ -20,6 +20,7 @@ AUDIO_BUFFER = "audio_buffer"
 BOT_MESSAGES = "bot_messages"
 USR_MESSAGES = "usr_messages"
 IS_READ = "is_read"
+HISTORY = "history"
 VISIBILITY = "visibility"
 
 # chatgpt
@@ -41,6 +42,8 @@ class WebRTCRecorder:
             st.session_state[USR_MESSAGES] = []
         if IS_READ not in st.session_state:
             st.session_state[IS_READ] = False
+        if HISTORY not in st.session_state:
+            st.session_state[HISTORY] = []
         if VISIBILITY not in st.session_state:
             st.session_state.visibility = "visible"
             st.session_state.disabled = False
@@ -132,12 +135,13 @@ class WebRTCRecorder:
         if isread or len(st.session_state[USR_MESSAGES]) == 0:
             return
         text = st.session_state[USR_MESSAGES][-1]
+        history = st.session_state[HISTORY][-6:]  # 最新6件
 
         if not self.webrtc_ctx.state.playing:
             try:
                 st.session_state.disabled = True
                 system = system_text(self.system_feature)
-                generated = chat.generate(system, text)
+                generated, history = chat.generate(system, text, history)
                 speaker.transform(generated)
                 speaker.save_wav(OUTPUT)
                 self.__background_play(OUTPUT)

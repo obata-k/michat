@@ -50,19 +50,25 @@ class ChatGPT:
     def max_token_size(self, n):
         self.__max_token_size = n
 
-    def generate(self, system_text, user_text):
-        # system role のメッセージ
-        messages = [
-            {
-                "role": "system",
-                "content": system_text,
-            },
-            {
-                "role": "user",
-                "content": user_text,
-            },
-        ]
-
+    # history は（DBやファイルなど）外部で保持している
+    def generate(self, system_text, user_text, history=None):
+        messages = []
+        if history is None:
+            history = []
+        for h in history:
+            messages.append(h)
+        messages.extend(
+            [
+                {
+                    "role": "system",
+                    "content": system_text,
+                },
+                {
+                    "role": "user",
+                    "content": user_text,
+                },
+            ]
+        )
         # GPT-3でテキストを生成する
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -75,7 +81,14 @@ class ChatGPT:
 
         # GPT-3の生成したテキストを取得する
         text = response.choices[0].message.content.strip()
-        return text
+        history = history + [
+            {
+                "role": "user",
+                "content": user_text,
+            },
+            {"role": "assistant", "content": text},
+        ]
+        return (text, history)
 
 
 class Audio:
