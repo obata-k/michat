@@ -8,7 +8,7 @@ def main():
     progname = Path(__file__).name
     parser = ArgumentParser(description=progname)
     parser.add_argument(
-        "--file", help="message to submit to ChatGPT", default="input.txt"
+        "--files", help="message to submit to ChatGPT", default="input.txt"
     )
     parser.add_argument(
         "--file-system", help="system message for ChatGPT", default="system.txt"
@@ -29,22 +29,24 @@ def main():
     speaker_id = args.speaker_id
     max_token_size = args.max_tokens
     system_file = Path(args.file_system)
-    user_file = Path(args.file)
+    user_files = args.files.split(",")
     output = Path(args.output)
 
     system_text = open(system_file, "r").read()
-    user_text = open(user_file, "r").read()
+    user_texts = [open(Path(user_file), "r").read() for user_file in user_files]
 
-    # ChatGPTで文章の生成
     chat = ChatGPT(max_token_size)
-    gen_text = chat.generate(system_text, user_text)
-    logger.info(gen_text)
-
-    # 音声出力
-    audio = Audio(speaker_id)
-    audio.transform(gen_text)
-    audio.save_wav(output)
-    audio.play(output)
+    history = None
+    for user_text in user_texts:
+        # ChatGPTで文章の生成
+        gen_text, history = chat.generate(system_text, user_text, history)
+        logger.info(gen_text)
+        logger.info(history)
+        # 音声出力
+        audio = Audio(speaker_id)
+        audio.transform(gen_text)
+        audio.save_wav(output)
+        audio.play(output)
 
 
 if __name__ == "__main__":
