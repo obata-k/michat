@@ -28,17 +28,9 @@ OUTPUT = Path("output.wav")
 
 class WebRTCRecorder:
     def __init__(self):
-        self.webrtc_ctx = webrtc_streamer(
-            key="michat",
-            mode=WebRtcMode.SENDONLY,
-            rtc_configuration={
-                "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
-            },
-            media_stream_constraints={"video": False, "audio": True},
-            audio_receiver_size=1024,
-        )
         self.speaker_id = 3
         self.max_token_size = 512
+        self.mode = "chat"  # 'chat' or 'image'
 
         if AUDIO_BUFFER not in st.session_state:
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
@@ -49,6 +41,17 @@ class WebRTCRecorder:
         if VISIBILITY not in st.session_state:
             st.session_state.visibility = "visible"
             st.session_state.disabled = False
+
+    def context(self):
+        self.webrtc_ctx = webrtc_streamer(
+            key="michat",
+            mode=WebRtcMode.SENDONLY,
+            rtc_configuration={
+                "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+            },
+            media_stream_constraints={"video": False, "audio": True},
+            audio_receiver_size=1024,
+        )
 
     def listen(self):
         self.status_box = st.empty()
@@ -155,6 +158,9 @@ class WebRTCRecorder:
         )
         self.speaker_id = speakers[option]
 
+    def mode_options(self):
+        self.mode = st.radio("モード選択", ("chat", "image"))
+
     def chat_view(self):
         container = st.container()
         if st.session_state[BOT_MESSAGES]:
@@ -188,11 +194,15 @@ def app():
     st_webrtc_logger.setLevel(logging.INFO)
 
     webrtc = WebRTCRecorder()
+    webrtc.mode_options()
     webrtc.voice_options()
+    webrtc.context()
+    if webrtc.mode == "chat":
+        webrtc.chat_view()
+    else:
+        webrtc.image()
     webrtc.listen()
     webrtc.request()
-    webrtc.image()
-    webrtc.chat_view()
 
 
 if __name__ == "__main__":
