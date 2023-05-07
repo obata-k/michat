@@ -285,7 +285,6 @@ def app():
     webrtc.listen()  # busy loop here
     webrtc.to_text()
     generated, emotions = webrtc.generate_and_play(speaker_id, feature)
-    print("generated", generated)
 
     if mode == "chat":
         webrtc.chat_view()
