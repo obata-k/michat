@@ -193,7 +193,7 @@ class WebRTCRecorder:
     def mode_options(self):
         st.session_state[MODE] = st.radio(
             "モード選択",
-            ("chat", "image"),
+            ("image", "chat"),
             label_visibility=st.session_state.visibility,
             disabled=st.session_state.disabled,
         )
