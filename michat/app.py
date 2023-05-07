@@ -10,7 +10,7 @@ from streamlit_chat import message
 
 import pydub
 import streamlit as st
-from lib.speak import ChatGPT, ChatGPTFeature, Audio, system_text
+from lib.speak import ChatGPTWithEmotion, ChatGPTFeature, Audio, system_text
 from lib.transcript import AudioTranscriber
 from streamlit_webrtc import WebRtcMode, webrtc_streamer
 
@@ -129,11 +129,11 @@ class WebRTCRecorder:
             return text
 
     def generate_and_play(self):
-        chat = ChatGPT(self.max_token_size)
+        chat = ChatGPTWithEmotion(self.max_token_size)
         speaker = Audio(self.speaker_id)
         isread = st.session_state[IS_READ]
         if isread or len(st.session_state[USR_MESSAGES]) == 0:
-            return
+            return (None, None)
         text = st.session_state[USR_MESSAGES][-1]
         history = st.session_state[HISTORY][-6:]  # 最新6件
 
@@ -141,7 +141,7 @@ class WebRTCRecorder:
             try:
                 st.session_state.disabled = True
                 system = system_text(self.system_feature)
-                generated, history = chat.generate(system, text, history)
+                generated, history, emotions = chat.generate(system, text, history)
                 speaker.transform(generated)
                 speaker.save_wav(OUTPUT)
                 self.__background_play(OUTPUT)
@@ -151,7 +151,7 @@ class WebRTCRecorder:
                 st.error(f"Error while request and play: {e}")
             finally:
                 st.session_state.disabled = False
-            return generated
+            return (generated, emotions)
 
     def voice_options(self):
         speakers = {
@@ -184,7 +184,12 @@ class WebRTCRecorder:
         self.speaker_id = speakers[option]
 
     def mode_options(self):
-        self.mode = st.radio("モード選択", ("chat", "image"))
+        self.mode = st.radio(
+            "モード選択",
+            ("chat", "image"),
+            label_visibility=st.session_state.visibility,
+            disabled=st.session_state.disabled,
+        )
 
     def feautre_option(self):
         feature = st.selectbox(
@@ -207,13 +212,34 @@ class WebRTCRecorder:
                         key=str(i) + "_usr",
                     )
 
-    def image(self):
-        image = Image.open("images/zunda-normal.png")
+    def __max_emotion(self, emotions):
+        if emotions is None:
+            return ("通常", -1)
+        return max(emotions.items(), key=lambda x: x[1])
+
+    def get_image(self, emotions=None):
+        images = {
+            "通常": "./images/zunda-normal.png",
+            "喜び": "./images/zunda-joy.png",
+            "楽しさ": "./images/zunda-fun.png",
+            "怒り": "./images/zunda-anger.png",
+            "悲しみ": "./images/zunda-sad.png",
+            "自信": "./images/zunda-confidence.png",
+            "恐怖": "./images/zunda-fear.png",
+            "困惑": "./images/zunda-confused.png",
+        }
+        max_emotion, value = self.__max_emotion(emotions)
+        if value == 0:
+            max_emotion = "通常"
+        return Image.open(images[max_emotion])
+
+    def image(self, text, emotions):
+        image = self.get_image(emotions)
         col1, col2, col3 = st.columns([1, 6, 1])
         with col1:
             st.write("")
         with col2:
-            st.image(image, width=500)
+            st.image(image, caption=text, width=500)
         with col3:
             st.write("")
 
@@ -235,12 +261,12 @@ def app():
     webrtc.context()
     webrtc.listen()
     webrtc.to_text()
-    webrtc.generate_and_play()
+    generated, emotions = webrtc.generate_and_play()
 
     if webrtc.mode == "chat":
         webrtc.chat_view()
     else:
-        webrtc.image()
+        webrtc.image(generated, emotions)
 
 
 if __name__ == "__main__":
