@@ -3,6 +3,7 @@ import os
 from argparse import ArgumentParser
 from pathlib import Path
 from enum import Enum
+import json
 
 import openai
 from dotenv import load_dotenv
@@ -89,6 +90,32 @@ class ChatGPT:
             {"role": "assistant", "content": text},
         ]
         return (text, history)
+
+
+class ChatGPTWithEmotion(ChatGPT):
+    def __init__(self, max_token_size):
+        super().__init__(max_token_size)
+        self.system_emotion = "system-emotion.txt"
+
+    def trim_and_parse(self, text):
+        lines = []
+        payload = None
+        for line in text.splitlines():
+            try:
+                payload = json.loads(line)
+                continue
+            except ValueError:
+                pass
+            if "感情パラメータ" not in line and line != "":
+                lines.append(line)
+        return "\n".join(lines), payload
+
+    def generate(self, system_text, user_text, history=None):
+        with open(self.system_emotion, "r") as f:
+            system_text += f.read()
+        generated, new_history = super().generate(system_text, user_text, history)
+        response, params = self.trim_and_parse(generated)
+        return (response, new_history, params)
 
 
 class Audio:

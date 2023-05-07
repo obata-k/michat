@@ -1,7 +1,8 @@
 from argparse import ArgumentParser
 from pathlib import Path
+import pprint
 
-from lib.speak import Audio, ChatGPT, setup_log
+from lib.speak import Audio, ChatGPTWithEmotion, setup_log
 
 
 def main():
@@ -35,13 +36,14 @@ def main():
     system_text = open(system_file, "r").read()
     user_texts = [open(Path(user_file), "r").read() for user_file in user_files]
 
-    chat = ChatGPT(max_token_size)
+    chat = ChatGPTWithEmotion(max_token_size)
     history = None
     for user_text in user_texts:
         # ChatGPTで文章の生成
-        gen_text, history = chat.generate(system_text, user_text, history)
+        gen_text, history, params = chat.generate(system_text, user_text, history)
         logger.info(gen_text)
         logger.info(history)
+        logger.info(params)
         # 音声出力
         audio = Audio(speaker_id)
         audio.transform(gen_text)
