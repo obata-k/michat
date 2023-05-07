@@ -118,93 +118,98 @@ class WebRTCRecorder:
         audio_placeholder.empty()
         audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
 
-    def to_text(self):
+    def generate_and_play(self, speaker_id, feature):
         audio_buffer = st.session_state[AUDIO_BUFFER]
         ts = AudioTranscriber()
-
-        if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
-            try:
-                wav_bytes = io.BytesIO()
-                audio_buffer.export(wav_bytes, format="wav")
-                text = ts.listen(wav_bytes)
-                st.session_state[USR_MESSAGES].append(text)
-            except Exception as e:
-                st.error(f"Error while transcripting: {e}")
-
-            st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
-            return text
-
-    def generate_and_play(self, speaker_id, feature):
-        if self.webrtc_ctx.state.playing or len(st.session_state[USR_MESSAGES]) == 0:
-            return (None, None)
-        if st.session_state[READ_INDEX] == len(st.session_state[BOT_MESSAGES]):
-            return (st.session_state[BOT_MESSAGES][-1], st.session_state[EMOTIONS])
-        text = st.session_state[USR_MESSAGES][-1]
         chat = ChatGPTWithEmotion(self.max_token_size)
         speaker = Audio(speaker_id)
         history = st.session_state[HISTORY][-6:]  # 最新6件
 
-        try:
-            st.session_state.disabled = True
-            system = system_text(feature)
-            generated, history, emotions = chat.generate(system, text, history)
-            speaker.transform(generated)
-            speaker.save_wav(OUTPUT)
-            self.__background_play(OUTPUT)
-            st.session_state[BOT_MESSAGES].append(generated)
-            st.session_state[READ_INDEX] = len(st.session_state[BOT_MESSAGES])
-        except Exception as e:
-            st.error(f"Error while request and play: {e}")
-        finally:
-            st.session_state.disabled = False
-        st.session_state[EMOTIONS] = emotions
-        return (generated, emotions)
+        if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
+            try:
+                st.session_state.disabled = True
+                # create wev
+                wav_bytes = io.BytesIO()
+                audio_buffer.export(wav_bytes, format="wav")
+                # transcript
+                user_text = ts.listen(wav_bytes)
+                st.session_state[USR_MESSAGES].append(user_text)
+                # generate text
+                system = system_text(feature)
+                generated, history, emotions = chat.generate(system, user_text, history)
+                # play audio
+                speaker.transform(generated)
+                speaker.save_wav(OUTPUT)
+                self.__background_play(OUTPUT)
+                st.session_state[BOT_MESSAGES].append(generated)
+                st.session_state[READ_INDEX] = len(st.session_state[BOT_MESSAGES])
+            except Exception as e:
+                st.error(f"Error while transcripting: {e}")
+            finally:
+                st.session_state.disabled = False
 
-    def chat_view(self):
-        if len(st.session_state[USR_MESSAGES]) == 0:
-            return
+            st.session_state[EMOTIONS] = emotions
+            st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
+            return (generated, emotions)
+        else:
+            return (None, None)
 
-        container = st.container()
-        if st.session_state[BOT_MESSAGES]:
-            with container:
-                for i in range(len(st.session_state[BOT_MESSAGES]) - 1, -1, -1):
-                    message(st.session_state[BOT_MESSAGES][i], key=str(i))
-                    message(
-                        st.session_state[USR_MESSAGES][i],
-                        is_user=True,
-                        key=str(i) + "_usr",
-                    )
 
-    def __max_emotion(self, emotions):
-        if emotions is None:
-            return ("通常", -1)
-        return max(emotions.items(), key=lambda x: x[1])
+def max_emotion(emotions):
+    if emotions is None:
+        return ("通常", 0)
+    return max(emotions.items(), key=lambda x: x[1])
 
-    def get_image(self, emotions=None):
-        images = {
-            "通常": "./images/zunda-normal.png",
-            "喜び": "./images/zunda-joy.png",
-            "楽しさ": "./images/zunda-fun.png",
-            "怒り": "./images/zunda-anger.png",
-            "悲しみ": "./images/zunda-sad.png",
-            "自信": "./images/zunda-confidence.png",
-            "恐怖": "./images/zunda-fear.png",
-            "困惑": "./images/zunda-confused.png",
-        }
-        max_emotion, value = self.__max_emotion(emotions)
-        if value == 0:
-            max_emotion = "通常"
-        return Image.open(images[max_emotion])
 
-    def image_view(self, text, emotions):
-        image = self.get_image(emotions)
-        col1, col2, col3 = st.columns([1, 6, 1])
-        with col1:
-            st.write("")
-        with col2:
-            st.image(image, caption=text, width=500)
-        with col3:
-            st.write("")
+def get_image(emotions):
+    max_emotion_str, value = max_emotion(emotions)
+    if value == 0:
+        max_emotion_str = "通常"
+    return emotion_image(max_emotion_str)
+
+
+@st.cache_data
+def emotion_image(emotion: str):
+    root = Path("images")
+    images = {
+        "通常": "zunda-normal.png",
+        "喜び": "zunda-joy.png",
+        "楽しさ": "zunda-fun.png",
+        "怒り": "zunda-anger.png",
+        "悲しみ": "zunda-sad.png",
+        "自信": "zunda-confidence.png",
+        "恐怖": "zunda-fear.png",
+        "困惑": "zunda-confused.png",
+    }
+    return Image.open(root / Path(images[emotion]))
+
+
+def chat_view():
+    if len(st.session_state[USR_MESSAGES]) == 0:
+        return
+
+    container = st.container()
+    if st.session_state[BOT_MESSAGES]:
+        with container:
+            for i in range(len(st.session_state[BOT_MESSAGES]) - 1, -1, -1):
+                message(st.session_state[BOT_MESSAGES][i], key=str(i))
+                message(
+                    st.session_state[USR_MESSAGES][i],
+                    is_user=True,
+                    key=str(i) + "_usr",
+                )
+
+
+def image_view(text, emotions):
+    image = get_image(emotions)
+    col1, col2, col3 = st.columns([1, 6, 1])
+    with col1:
+        st.write("")
+    with col2:
+        st.write("")
+        st.image(image, caption=text, width=500)
+    with col3:
+        st.write("")
 
 
 def voice_options():
@@ -283,13 +288,14 @@ def app():
 
     print(st.session_state)
     webrtc.listen()  # busy loop here
-    webrtc.to_text()
     generated, emotions = webrtc.generate_and_play(speaker_id, feature)
+    print(generated)
+    print(emotions)
 
     if mode == "chat":
-        webrtc.chat_view()
+        chat_view()
     else:
-        webrtc.image_view(generated, emotions)
+        image_view(generated, emotions)
 
 
 if __name__ == "__main__":
