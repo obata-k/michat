@@ -55,7 +55,6 @@ class WebRTCRecorder:
             st.session_state.visibility = "visible"
             st.session_state.disabled = False
 
-    def context(self):
         self.webrtc_ctx = webrtc_streamer(
             key="michat",
             mode=WebRtcMode.SENDONLY,
@@ -266,7 +265,6 @@ def app():
         webrtc.voice_options()
         webrtc.feautre_option()
 
-    webrtc.context()
     webrtc.listen()
     webrtc.to_text()
     generated, emotions = webrtc.generate_and_play()
