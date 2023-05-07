@@ -19,6 +19,10 @@ from streamlit_webrtc import WebRtcMode, webrtc_streamer
 AUDIO_BUFFER = "audio_buffer"
 BOT_MESSAGES = "bot_messages"
 USR_MESSAGES = "usr_messages"
+SPEAKER_ID = "speaker_id"
+MAX_TOKEN_SIZE = "max_token_size"
+MODE = "mode"
+FEATURE = "feature"
 IS_READ = "is_read"
 HISTORY = "history"
 VISIBILITY = "visibility"
@@ -29,10 +33,7 @@ OUTPUT = Path("output.wav")
 
 class WebRTCRecorder:
     def __init__(self):
-        self.speaker_id = 4
-        self.system_feature = ChatGPTFeature.ZUNDAMON
-        self.max_token_size = 512
-        self.mode = "chat"  # 'chat' or 'image'
+        self.max_token_size = 512  # const
 
         if AUDIO_BUFFER not in st.session_state:
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
@@ -40,6 +41,12 @@ class WebRTCRecorder:
             st.session_state[BOT_MESSAGES] = []
         if USR_MESSAGES not in st.session_state:
             st.session_state[USR_MESSAGES] = []
+        if SPEAKER_ID not in st.session_state:
+            st.session_state[SPEAKER_ID] = 3
+        if MODE not in st.session_state:
+            st.session_state[MODE] = "chat"  # 'chat' or 'image'
+        if FEATURE not in st.session_state:
+            st.session_state[FEATURE] = ChatGPTFeature.ZUNDAMON
         if IS_READ not in st.session_state:
             st.session_state[IS_READ] = False
         if HISTORY not in st.session_state:
@@ -130,7 +137,7 @@ class WebRTCRecorder:
 
     def generate_and_play(self):
         chat = ChatGPTWithEmotion(self.max_token_size)
-        speaker = Audio(self.speaker_id)
+        speaker = Audio(st.session_state[SPEAKER_ID])
         isread = st.session_state[IS_READ]
         if isread or len(st.session_state[USR_MESSAGES]) == 0:
             return (None, None)
@@ -140,7 +147,7 @@ class WebRTCRecorder:
         if not self.webrtc_ctx.state.playing:
             try:
                 st.session_state.disabled = True
-                system = system_text(self.system_feature)
+                system = system_text(st.session_state[FEATURE])
                 generated, history, emotions = chat.generate(system, text, history)
                 speaker.transform(generated)
                 speaker.save_wav(OUTPUT)
@@ -177,14 +184,14 @@ class WebRTCRecorder:
         option = st.selectbox(
             "音声",
             (list(speakers.keys())),
-            index=self.speaker_id,
+            index=4,
             label_visibility=st.session_state.visibility,
             disabled=st.session_state.disabled,
         )
-        self.speaker_id = speakers[option]
+        st.session_state[SPEAKER_ID] = speakers[option]
 
     def mode_options(self):
-        self.mode = st.radio(
+        st.session_state[MODE] = st.radio(
             "モード選択",
             ("chat", "image"),
             label_visibility=st.session_state.visibility,
@@ -198,7 +205,7 @@ class WebRTCRecorder:
             label_visibility=st.session_state.visibility,
             disabled=st.session_state.disabled,
         )
-        self.system_feature = ChatGPTFeature.value_of(feature)
+        st.session_state[FEATURE] = ChatGPTFeature.value_of(feature)
 
     def chat_view(self):
         container = st.container()
@@ -263,7 +270,7 @@ def app():
     webrtc.to_text()
     generated, emotions = webrtc.generate_and_play()
 
-    if webrtc.mode == "chat":
+    if st.session_state[MODE] == "chat":
         webrtc.chat_view()
     else:
         webrtc.image(generated, emotions)
