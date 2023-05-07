@@ -131,26 +131,26 @@ class WebRTCRecorder:
             return text
 
     def generate_and_play(self):
+        if self.webrtc_ctx.state.playing or len(st.session_state[USR_MESSAGES]) == 0:
+            return (None, None)
+
         chat = ChatGPTWithEmotion(self.max_token_size)
         speaker = Audio(st.session_state[SPEAKER_ID])
-        if len(st.session_state[USR_MESSAGES]) == 0:
-            return (None, None)
         text = st.session_state[USR_MESSAGES][-1]
         history = st.session_state[HISTORY][-6:]  # 最新6件
 
-        if not self.webrtc_ctx.state.playing:
-            try:
-                st.session_state.disabled = True
-                system = system_text(st.session_state[FEATURE])
-                generated, history, emotions = chat.generate(system, text, history)
-                speaker.transform(generated)
-                speaker.save_wav(OUTPUT)
-                self.__background_play(OUTPUT)
-                st.session_state[BOT_MESSAGES].append(generated)
-            except Exception as e:
-                st.error(f"Error while request and play: {e}")
-            finally:
-                st.session_state.disabled = False
+        try:
+            st.session_state.disabled = True
+            system = system_text(st.session_state[FEATURE])
+            generated, history, emotions = chat.generate(system, text, history)
+            speaker.transform(generated)
+            speaker.save_wav(OUTPUT)
+            self.__background_play(OUTPUT)
+            st.session_state[BOT_MESSAGES].append(generated)
+        except Exception as e:
+            st.error(f"Error while request and play: {e}")
+        finally:
+            st.session_state.disabled = False
             return (generated, emotions)
 
     def voice_options(self):
@@ -233,7 +233,7 @@ class WebRTCRecorder:
             max_emotion = "通常"
         return Image.open(images[max_emotion])
 
-    def image(self, text, emotions):
+    def image_view(self, text, emotions):
         image = self.get_image(emotions)
         col1, col2, col3 = st.columns([1, 6, 1])
         with col1:
@@ -259,14 +259,14 @@ def app():
         webrtc.voice_options()
         webrtc.feautre_option()
 
-    webrtc.listen()
+    webrtc.listen()  # busy loop here
     webrtc.to_text()
     generated, emotions = webrtc.generate_and_play()
 
     if st.session_state[MODE] == "chat":
         webrtc.chat_view()
     else:
-        webrtc.image(generated, emotions)
+        webrtc.image_view(generated, emotions)
 
 
 if __name__ == "__main__":
