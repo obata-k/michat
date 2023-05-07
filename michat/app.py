@@ -155,17 +155,10 @@ class WebRTCRecorder:
             return (None, None)
 
 
-def max_emotion(emotions):
+def max_emotion(emotions=None):
     if emotions is None:
-        return ("通常", 0)
-    return max(emotions.items(), key=lambda x: x[1])
-
-
-def get_image(emotions):
-    max_emotion_str, value = max_emotion(emotions)
-    if value == 0:
-        max_emotion_str = "通常"
-    return emotion_image(max_emotion_str)
+        return ""
+    return max(emotions, key=emotions.get)
 
 
 @st.cache_data
@@ -182,6 +175,13 @@ def emotion_image(emotion: str):
         "困惑": "zunda-confused.png",
     }
     return Image.open(root / Path(images[emotion]))
+
+
+def get_image(emotions):
+    max_emotion_str = max_emotion(emotions)
+    if emotions is None or emotions[max_emotion_str] == 0:
+        max_emotion_str = "通常"
+    return emotion_image(max_emotion_str)
 
 
 def chat_view():
