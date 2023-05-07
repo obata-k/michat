@@ -261,9 +261,11 @@ def app():
     st_webrtc_logger.setLevel(logging.INFO)
 
     webrtc = WebRTCRecorder()
-    webrtc.mode_options()
-    webrtc.voice_options()
-    webrtc.feautre_option()
+
+    with st.sidebar:
+        webrtc.mode_options()
+        webrtc.voice_options()
+        webrtc.feautre_option()
 
     webrtc.context()
     webrtc.listen()
