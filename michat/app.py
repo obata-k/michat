@@ -23,7 +23,6 @@ SPEAKER_ID = "speaker_id"
 MAX_TOKEN_SIZE = "max_token_size"
 MODE = "mode"
 FEATURE = "feature"
-IS_READ = "is_read"
 HISTORY = "history"
 VISIBILITY = "visibility"
 
@@ -47,8 +46,6 @@ class WebRTCRecorder:
             st.session_state[MODE] = "chat"  # 'chat' or 'image'
         if FEATURE not in st.session_state:
             st.session_state[FEATURE] = ChatGPTFeature.ZUNDAMON
-        if IS_READ not in st.session_state:
-            st.session_state[IS_READ] = False
         if HISTORY not in st.session_state:
             st.session_state[HISTORY] = []
         if VISIBILITY not in st.session_state:
@@ -127,7 +124,6 @@ class WebRTCRecorder:
                 audio_buffer.export(wav_bytes, format="wav")
                 text = ts.listen(wav_bytes)
                 st.session_state[USR_MESSAGES].append(text)
-                st.session_state[IS_READ] = False
             except Exception as e:
                 st.error(f"Error while transcripting: {e}")
 
@@ -137,8 +133,7 @@ class WebRTCRecorder:
     def generate_and_play(self):
         chat = ChatGPTWithEmotion(self.max_token_size)
         speaker = Audio(st.session_state[SPEAKER_ID])
-        isread = st.session_state[IS_READ]
-        if isread or len(st.session_state[USR_MESSAGES]) == 0:
+        if len(st.session_state[USR_MESSAGES]) == 0:
             return (None, None)
         text = st.session_state[USR_MESSAGES][-1]
         history = st.session_state[HISTORY][-6:]  # 最新6件
@@ -152,7 +147,6 @@ class WebRTCRecorder:
                 speaker.save_wav(OUTPUT)
                 self.__background_play(OUTPUT)
                 st.session_state[BOT_MESSAGES].append(generated)
-                st.session_state[IS_READ] = True
             except Exception as e:
                 st.error(f"Error while request and play: {e}")
             finally:
