@@ -22,8 +22,9 @@ RUN groupadd --gid $USER_GID $GROUPNAME \
 USER $USERNAME
 WORKDIR /app
 
-# RUN git clone --depth 1 https://github.com/obata-k/michat.git .
 COPY --chown=$USERNAME:$USERNAME . .
+## if you want to build the main branch, please uncomment the bellow line
+#RUN git clone -b main --depth 1 https://github.com/obata-k/michat.git /app
 
 ARG PYTHON_PKG=/app/pkg
 
