@@ -19,6 +19,9 @@ RUN groupadd --gid $USER_GID $GROUPNAME \
     flac \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
+ENV VIRTUAL_ENV /env
+ENV PATH /env/bin:$PATH
+
 USER $USERNAME
 WORKDIR /app
 
@@ -46,10 +49,10 @@ ENV PATH $PATH:$PYTHON_PKG/bin
 ENV PYTHONPATH $PYTHONPATH:$PYTHON_PKG
 
 # streamlit default port
-EXPOSE 8501
+EXPOSE 8080
 
 HEALTHCHECK --interval=1m --timeout=3s \
-    CMD curl --fail http://localhost:8501 || exit 1
+    CMD curl --fail http://localhost:8080 || exit 1
 
-ENTRYPOINT ["streamlit", "run", "michat/app.py", "--global.developmentMode=false", "--server.port=8501", "--server.address=0.0.0.0"]
+ENTRYPOINT ["streamlit", "run", "michat/app.py", "--global.developmentMode=false", "--server.port=8080", "--server.address=0.0.0.0"]
 # ENTRYPOINT ["/bin/bash", "-c"]
