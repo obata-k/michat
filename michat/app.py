@@ -1,6 +1,6 @@
 import io
-import logging
 import base64
+import logging
 from PIL import Image
 import time
 import numpy as np
@@ -32,30 +32,32 @@ VISIBILITY = "visibility"
 OUTPUT = Path("output.wav")
 
 
+def session_init():
+    if AUDIO_BUFFER not in st.session_state:
+        st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
+    if BOT_MESSAGES not in st.session_state:
+        st.session_state[BOT_MESSAGES] = []
+    if USR_MESSAGES not in st.session_state:
+        st.session_state[USR_MESSAGES] = []
+    if EMOTIONS not in st.session_state:
+        st.session_state[EMOTIONS] = None
+    if SPEAKER_ID not in st.session_state:
+        st.session_state[SPEAKER_ID] = 3
+    if MODE_INDEX not in st.session_state:
+        st.session_state[MODE_INDEX] = 0
+    if FEATURE_INDEX not in st.session_state:
+        st.session_state[FEATURE_INDEX] = 0
+    if HISTORY not in st.session_state:
+        st.session_state[HISTORY] = []
+    if READ_INDEX not in st.session_state:
+        st.session_state[READ_INDEX] = None
+    if VISIBILITY not in st.session_state:
+        st.session_state.visibility = "visible"
+        st.session_state.disabled = False
+
+
 class WebRTCRecorder:
     def __init__(self):
-        if AUDIO_BUFFER not in st.session_state:
-            st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
-        if BOT_MESSAGES not in st.session_state:
-            st.session_state[BOT_MESSAGES] = []
-        if USR_MESSAGES not in st.session_state:
-            st.session_state[USR_MESSAGES] = []
-        if EMOTIONS not in st.session_state:
-            st.session_state[EMOTIONS] = None
-        if SPEAKER_ID not in st.session_state:
-            st.session_state[SPEAKER_ID] = 3
-        if MODE_INDEX not in st.session_state:
-            st.session_state[MODE_INDEX] = 0
-        if FEATURE_INDEX not in st.session_state:
-            st.session_state[FEATURE_INDEX] = 0
-        if HISTORY not in st.session_state:
-            st.session_state[HISTORY] = []
-        if READ_INDEX not in st.session_state:
-            st.session_state[READ_INDEX] = -1
-        if VISIBILITY not in st.session_state:
-            st.session_state.visibility = "visible"
-            st.session_state.disabled = False
-
         self.max_token_size = 512  # const
 
         self.webrtc_ctx = webrtc_streamer(
@@ -69,10 +71,12 @@ class WebRTCRecorder:
         )
 
     def listen(self):
+        self.status_box = st.empty()
+
         if not self.webrtc_ctx.state.playing:
             return
 
-        self.status_box = st.empty()
+        self.status_box.info("Loading...")
 
         while True:
             if self.webrtc_ctx.audio_receiver:
@@ -140,8 +144,8 @@ class WebRTCRecorder:
                 speaker.transform(generated)
                 speaker.save_wav(OUTPUT)
                 self.__background_play(OUTPUT)
-                st.session_state[BOT_MESSAGES].append(generated)
                 st.session_state[READ_INDEX] = len(st.session_state[BOT_MESSAGES])
+                st.session_state[BOT_MESSAGES].append(generated)
             except Exception as e:
                 st.error(f"Error while transcripting: {e}")
 
@@ -152,14 +156,14 @@ class WebRTCRecorder:
             return (None, None)
 
 
-def max_emotion(emotions=None):
+def max_emotion(emotions=None) -> str:
     if emotions is None:
-        return ""
+        return "通常"
     return max(emotions, key=emotions.get)
 
 
 @st.cache_data
-def emotion_image(emotion: str):
+def emotion_image_path(emotion: str):
     root = Path("images")
     images = {
         "通常": "zunda-normal.png",
@@ -174,11 +178,15 @@ def emotion_image(emotion: str):
     return Image.open(root / Path(images[emotion]))
 
 
-def get_image(emotions):
+def get_image(emotions: dict):
     max_emotion_str = max_emotion(emotions)
-    if emotions is None or emotions[max_emotion_str] == 0:
+    if (
+        emotions is None
+        or max_emotion_str not in emotions
+        or emotions[max_emotion_str] == 0
+    ):
         max_emotion_str = "通常"
-    return emotion_image(max_emotion_str)
+    return emotion_image_path(max_emotion_str)
 
 
 def chat_view():
@@ -197,7 +205,14 @@ def chat_view():
                 )
 
 
-def image_view(text, emotions):
+def image_view():
+    emotions = st.session_state[EMOTIONS]
+    read_index = st.session_state[READ_INDEX]
+    if read_index is None:
+        text = ""
+    else:
+        text = st.session_state[BOT_MESSAGES][read_index]
+
     image = get_image(emotions)
     col1, col2, col3 = st.columns([1, 6, 1])
     with col1:
@@ -273,26 +288,28 @@ def app():
     st.set_page_config(page_title="michat - DEMO", page_icon=image)
     st.title("michat")
 
-    logger = get_logger(__name__)
-    logger.setLevel(logging.INFO)
+    logger = get_logger("streamlit_webrtc")
+    logger.setLevel(logging.DEBUG)
 
-    webrtc = WebRTCRecorder()
+    session_init()
 
     with st.sidebar:
         view_mode = mode_options()
         speaker_id = voice_options()
         feature = feautre_option()
 
-    logger.info("session_state: {}".format(st.session_state))
+    if view_mode == "chat":
+        chat_view()
+    elif view_mode == "image":
+        image_view()
+
+    webrtc = WebRTCRecorder()
+    logger.debug("session_state: {}".format(st.session_state))
+    logger.debug("player state: {}".format(webrtc.webrtc_ctx.state))
     webrtc.listen()  # busy loop here
     generated, emotions = webrtc.generate_and_play(speaker_id, feature)
     logger.info("generated: {}".format(generated))
     logger.info("emotions: {}".format(emotions))
-
-    if view_mode == "chat":
-        chat_view()
-    elif view_mode == "image":
-        image_view(generated, emotions)
 
 
 if __name__ == "__main__":
