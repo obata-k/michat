@@ -127,7 +127,6 @@ class WebRTCRecorder:
 
         if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
             try:
-                st.session_state.disabled = True
                 # create wev
                 wav_bytes = io.BytesIO()
                 audio_buffer.export(wav_bytes, format="wav")
@@ -145,8 +144,6 @@ class WebRTCRecorder:
                 st.session_state[READ_INDEX] = len(st.session_state[BOT_MESSAGES])
             except Exception as e:
                 st.error(f"Error while transcripting: {e}")
-            finally:
-                st.session_state.disabled = False
 
             st.session_state[EMOTIONS] = emotions
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
@@ -247,15 +244,15 @@ def voice_options():
 
 def mode_options():
     modes = ["image", "chat"]
-    mode = st.radio(
+    view_mode = st.radio(
         "モード選択",
         modes,
         index=st.session_state[MODE_INDEX],
         label_visibility=st.session_state.visibility,
         disabled=st.session_state.disabled,
     )
-    st.session_state[MODE_INDEX] = modes.index(mode)
-    return mode
+    st.session_state[MODE_INDEX] = modes.index(view_mode)
+    return view_mode
 
 
 def feautre_option():
@@ -282,19 +279,19 @@ def app():
     webrtc = WebRTCRecorder()
 
     with st.sidebar:
-        mode = mode_options()
+        view_mode = mode_options()
         speaker_id = voice_options()
         feature = feautre_option()
 
-    logger.info(st.session_state)
+    logger.info("session_state: {}".format(st.session_state))
     webrtc.listen()  # busy loop here
     generated, emotions = webrtc.generate_and_play(speaker_id, feature)
-    logger.info(generated)
-    logger.info(emotions)
+    logger.info("generated: {}".format(generated))
+    logger.info("emotions: {}".format(emotions))
 
-    if mode == "chat":
+    if view_mode == "chat":
         chat_view()
-    else:
+    elif view_mode == "image":
         image_view(generated, emotions)
 
 
