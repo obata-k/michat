@@ -14,6 +14,16 @@ ChatGPTの出力を初音ミクやカゲプロのエネっぽい口調で音声�
     - you can download from [sourceforge](http://downloads.sourceforge.net/open-jtalk/)
     - extract and install in the current directory
 
+### Versions
+
+| software        | version |
+|-----------------|---------|
+| VOICEVOX core   |  0.14.2 |
+| ONNX Runtime    |  1.13.1 |
+| Open Jtalk dict |  8-1.11 |
+
+See `requirements.txt` or `pyproject.toml` to support the version of other python packeges 
+
 ## Usage
 
 ### CLI
