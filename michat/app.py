@@ -286,11 +286,11 @@ def app():
         speaker_id = voice_options()
         feature = feautre_option()
 
-    print(st.session_state)
+    logger.info(st.session_state)
     webrtc.listen()  # busy loop here
     generated, emotions = webrtc.generate_and_play(speaker_id, feature)
-    print(generated)
-    print(emotions)
+    logger.info(generated)
+    logger.info(emotions)
 
     if mode == "chat":
         chat_view()
