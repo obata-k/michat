@@ -14,9 +14,9 @@ import streamlit as st
 from lib.speak import ChatGPTWithEmotion, ChatGPTFeature, Audio, system_text
 from lib.transcript import AudioTranscriber
 from streamlit_webrtc import WebRtcMode, webrtc_streamer
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 
-
-# stremlit status
+# stremlit session state
 AUDIO_BUFFER = "audio_buffer"
 BOT_MESSAGES = "bot_messages"
 USR_MESSAGES = "usr_messages"
@@ -30,11 +30,8 @@ HISTORY = "history"
 VISIBILITY = "visibility"
 RERUNED = "reruned"
 
-# chatgpt response to wav
-OUTPUT = Path("output.wav")
-
 logger = get_logger("streamlit_webrtc")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 def session_init():
@@ -112,25 +109,6 @@ class WebRTCRecorder:
             else:
                 break
 
-    def __background_play(self, file):
-        audio_placeholder = st.empty()
-        with open(file, "rb") as ow:
-            wav_content = ow.read()
-        audio_str = "data:audio/ogg;base64,%s" % (
-            base64.b64encode(wav_content).decode()
-        )
-        audio_html = (
-            """
-            <audio autoplay=True>
-            <source src="%s" type="audio/ogg" autoplay=True>
-            Your browser does not support the audio element.
-            </audio>
-            """
-            % audio_str
-        )
-        audio_placeholder.empty()
-        audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
-
     def generate(self, feature):
         audio_buffer = st.session_state[AUDIO_BUFFER]
         ts = AudioTranscriber()
@@ -164,6 +142,23 @@ class WebRTCRecorder:
         else:
             return (None, None)
 
+    def __background_play(self, wav_content):
+        audio_placeholder = st.empty()
+        audio_str = "data:audio/ogg;base64,%s" % (
+            base64.b64encode(wav_content).decode()
+        )
+        audio_html = (
+            """
+            <audio autoplay=True>
+            <source src="%s" type="audio/ogg" autoplay=True>
+            Your browser does not support the audio element.
+            </audio>
+            """
+            % audio_str
+        )
+        audio_placeholder.empty()
+        audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
+
     def audio_play(self, speaker_id):
         if (
             len(st.session_state[BOT_MESSAGES]) == 0
@@ -177,8 +172,8 @@ class WebRTCRecorder:
         # play audio
         speaker = Audio(speaker_id)
         speaker.transform(text)
-        speaker.save_wav(OUTPUT)
-        self.__background_play(OUTPUT)
+        wav_bytes = speaker.get_wav()
+        self.__background_play(wav_bytes)
         st.session_state[READ_INDEX] = st.session_state[GENERATED_INDEX]
 
 

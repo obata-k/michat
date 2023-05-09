@@ -136,8 +136,11 @@ class Audio:
 
     # 音声をファイルに保存する
     def save_wav(self, out):
-        wav = self.core.synthesis(self.audio_query, self.speaker_id)
-        out.write_bytes(wav)
+        out.write_bytes(self.wav)
+
+    def get_wav(self):
+        self.wav = self.core.synthesis(self.audio_query, self.speaker_id)
+        return self.wav
 
     # 音声を再生する
     def play(self, file):
