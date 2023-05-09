@@ -1,0 +1,9 @@
+.venv
+venv
+*.wav
+libonnxruntime.*
+voicevox_core*
+open_jtalk_dic*
+.mypy_cache
+.pytest_cache
+.env
