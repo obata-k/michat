@@ -28,6 +28,10 @@ class ChatGPTFeature(Enum):
         return [i.value for i in cls]
 
     @classmethod
+    def index(cls, value) -> int:
+        return cls.get_values().index(value)
+
+    @classmethod
     def value_of(cls, target_value):
         for e in ChatGPTFeature:
             if e.value == target_value:

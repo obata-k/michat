@@ -1,12 +1,13 @@
 import io
-import logging
 import base64
+import logging
 from PIL import Image
 import time
 import numpy as np
 import queue
 from pathlib import Path
 from streamlit_chat import message
+from streamlit.logger import get_logger
 
 import pydub
 import streamlit as st
@@ -19,36 +20,46 @@ from streamlit_webrtc import WebRtcMode, webrtc_streamer
 AUDIO_BUFFER = "audio_buffer"
 BOT_MESSAGES = "bot_messages"
 USR_MESSAGES = "usr_messages"
-IS_READ = "is_read"
+READ_INDEX = "read_index"
+SPEAKER_ID = "speaker_id"
+MODE_INDEX = "mode_index"
+EMOTIONS = "emotions"
+FEATURE_INDEX = "feature_index"
 HISTORY = "history"
 VISIBILITY = "visibility"
 
-# chatgpt
+# chatgpt response to wav
 OUTPUT = Path("output.wav")
+
+
+def session_init():
+    if AUDIO_BUFFER not in st.session_state:
+        st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
+    if BOT_MESSAGES not in st.session_state:
+        st.session_state[BOT_MESSAGES] = []
+    if USR_MESSAGES not in st.session_state:
+        st.session_state[USR_MESSAGES] = []
+    if EMOTIONS not in st.session_state:
+        st.session_state[EMOTIONS] = None
+    if SPEAKER_ID not in st.session_state:
+        st.session_state[SPEAKER_ID] = 3
+    if MODE_INDEX not in st.session_state:
+        st.session_state[MODE_INDEX] = 0
+    if FEATURE_INDEX not in st.session_state:
+        st.session_state[FEATURE_INDEX] = 0
+    if HISTORY not in st.session_state:
+        st.session_state[HISTORY] = []
+    if READ_INDEX not in st.session_state:
+        st.session_state[READ_INDEX] = None
+    if VISIBILITY not in st.session_state:
+        st.session_state.visibility = "visible"
+        st.session_state.disabled = False
 
 
 class WebRTCRecorder:
     def __init__(self):
-        self.speaker_id = 4
-        self.system_feature = ChatGPTFeature.ZUNDAMON
-        self.max_token_size = 512
-        self.mode = "chat"  # 'chat' or 'image'
+        self.max_token_size = 512  # const
 
-        if AUDIO_BUFFER not in st.session_state:
-            st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
-        if BOT_MESSAGES not in st.session_state:
-            st.session_state[BOT_MESSAGES] = []
-        if USR_MESSAGES not in st.session_state:
-            st.session_state[USR_MESSAGES] = []
-        if IS_READ not in st.session_state:
-            st.session_state[IS_READ] = False
-        if HISTORY not in st.session_state:
-            st.session_state[HISTORY] = []
-        if VISIBILITY not in st.session_state:
-            st.session_state.visibility = "visible"
-            st.session_state.disabled = False
-
-    def context(self):
         self.webrtc_ctx = webrtc_streamer(
             key="michat",
             mode=WebRtcMode.SENDONLY,
@@ -65,12 +76,12 @@ class WebRTCRecorder:
         if not self.webrtc_ctx.state.playing:
             return
 
+        self.status_box.info("Loading...")
+
         while True:
             if self.webrtc_ctx.audio_receiver:
                 try:
-                    audio_frames = self.webrtc_ctx.audio_receiver.get_frames(
-                        timeout=0.5
-                    )
+                    audio_frames = self.webrtc_ctx.audio_receiver.get_frames(timeout=1)
                 except queue.Empty:
                     self.status_box.warning("No frame arrived.")
                     continue
@@ -111,162 +122,198 @@ class WebRTCRecorder:
         audio_placeholder.empty()
         audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
 
-    def to_text(self):
+    def generate_and_play(self, speaker_id, feature):
         audio_buffer = st.session_state[AUDIO_BUFFER]
         ts = AudioTranscriber()
+        chat = ChatGPTWithEmotion(self.max_token_size)
+        speaker = Audio(speaker_id)
+        history = st.session_state[HISTORY][-6:]  # 最新6件
 
         if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
             try:
+                # create wev
                 wav_bytes = io.BytesIO()
                 audio_buffer.export(wav_bytes, format="wav")
-                text = ts.listen(wav_bytes)
-                st.session_state[USR_MESSAGES].append(text)
-                st.session_state[IS_READ] = False
+                # transcript
+                user_text = ts.listen(wav_bytes)
+                st.session_state[USR_MESSAGES].append(user_text)
             except Exception as e:
                 st.error(f"Error while transcripting: {e}")
 
-            st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
-            return text
-
-    def generate_and_play(self):
-        chat = ChatGPTWithEmotion(self.max_token_size)
-        speaker = Audio(self.speaker_id)
-        isread = st.session_state[IS_READ]
-        if isread or len(st.session_state[USR_MESSAGES]) == 0:
-            return (None, None)
-        text = st.session_state[USR_MESSAGES][-1]
-        history = st.session_state[HISTORY][-6:]  # 最新6件
-
-        if not self.webrtc_ctx.state.playing:
             try:
-                st.session_state.disabled = True
-                system = system_text(self.system_feature)
-                generated, history, emotions = chat.generate(system, text, history)
+                # generate text
+                system = system_text(feature)
+                generated, history, emotions = chat.generate(system, user_text, history)
+                # play audio
                 speaker.transform(generated)
                 speaker.save_wav(OUTPUT)
                 self.__background_play(OUTPUT)
+                st.session_state[READ_INDEX] = len(st.session_state[BOT_MESSAGES])
                 st.session_state[BOT_MESSAGES].append(generated)
-                st.session_state[IS_READ] = True
             except Exception as e:
-                st.error(f"Error while request and play: {e}")
-            finally:
-                st.session_state.disabled = False
+                st.error(f"Error while generating and playing: {e}")
+
+            st.session_state[EMOTIONS] = emotions
+            st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
             return (generated, emotions)
+        else:
+            return (None, None)
 
-    def voice_options(self):
-        speakers = {
-            "四国めたん（あまあま）": 0,
-            "四国めたん（ノーマル）": 2,
-            "四国めたん（ツンツン）": 6,
-            "四国めたん（セクシー）": 4,
-            "ずんだもん（ノーマル）": 3,
-            "ずんだもん（あまあま）": 1,
-            "ずんだもん（ツンツン）": 7,
-            "ずんだもん（セクシー）": 5,
-            "春日部つむぎ（ノーマル）": 8,
-            "雨晴はう（ノーマル）": 10,
-            "玄野武宏（ノーマル）": 11,
-            "白上虎太郎（ノーマル）": 12,
-            "青山龍星（ノーマル）": 13,
-            "冥鳴ひまり（ノーマル）": 14,
-            "九州そら（あまあま）": 15,
-            "九州そら（ツンツン）": 18,
-            "九州そら（セクシー）": 17,
-            "九州そら（ささやき）": 19,
-        }
-        option = st.selectbox(
-            "音声",
-            (list(speakers.keys())),
-            index=self.speaker_id,
-            label_visibility=st.session_state.visibility,
-            disabled=st.session_state.disabled,
-        )
-        self.speaker_id = speakers[option]
 
-    def mode_options(self):
-        self.mode = st.radio(
-            "モード選択",
-            ("chat", "image"),
-            label_visibility=st.session_state.visibility,
-            disabled=st.session_state.disabled,
-        )
+def max_emotion(emotions=None) -> str:
+    if emotions is None:
+        return "通常"
+    return max(emotions, key=emotions.get)
 
-    def feautre_option(self):
-        feature = st.selectbox(
-            "口調",
-            (ChatGPTFeature.get_values()),
-            label_visibility=st.session_state.visibility,
-            disabled=st.session_state.disabled,
-        )
-        self.system_feature = ChatGPTFeature.value_of(feature)
 
-    def chat_view(self):
-        container = st.container()
-        if st.session_state[BOT_MESSAGES]:
-            with container:
-                for i in range(len(st.session_state[BOT_MESSAGES]) - 1, -1, -1):
-                    message(st.session_state[BOT_MESSAGES][i], key=str(i))
-                    message(
-                        st.session_state[USR_MESSAGES][i],
-                        is_user=True,
-                        key=str(i) + "_usr",
-                    )
+@st.cache_data
+def emotion_image_path(emotion: str):
+    root = Path("images")
+    images = {
+        "通常": "zunda-normal.png",
+        "喜び": "zunda-joy.png",
+        "楽しさ": "zunda-fun.png",
+        "怒り": "zunda-anger.png",
+        "悲しみ": "zunda-sad.png",
+        "自信": "zunda-confidence.png",
+        "恐怖": "zunda-fear.png",
+        "困惑": "zunda-confused.png",
+    }
+    return Image.open(root / Path(images[emotion]))
 
-    def __max_emotion(self, emotions):
-        if emotions is None:
-            return ("通常", -1)
-        return max(emotions.items(), key=lambda x: x[1])
 
-    def get_image(self, emotions=None):
-        images = {
-            "通常": "./images/zunda-normal.png",
-            "喜び": "./images/zunda-joy.png",
-            "楽しさ": "./images/zunda-fun.png",
-            "怒り": "./images/zunda-anger.png",
-            "悲しみ": "./images/zunda-sad.png",
-            "自信": "./images/zunda-confidence.png",
-            "恐怖": "./images/zunda-fear.png",
-            "困惑": "./images/zunda-confused.png",
-        }
-        max_emotion, value = self.__max_emotion(emotions)
-        if value == 0:
-            max_emotion = "通常"
-        return Image.open(images[max_emotion])
+def get_image(emotions: dict):
+    max_emotion_str = max_emotion(emotions)
+    if (
+        emotions is None
+        or max_emotion_str not in emotions
+        or emotions[max_emotion_str] == 0
+    ):
+        max_emotion_str = "通常"
+    return emotion_image_path(max_emotion_str)
 
-    def image(self, text, emotions):
-        image = self.get_image(emotions)
-        col1, col2, col3 = st.columns([1, 6, 1])
-        with col1:
-            st.write("")
-        with col2:
-            st.image(image, caption=text, width=500)
-        with col3:
-            st.write("")
+
+def chat_view():
+    if len(st.session_state[USR_MESSAGES]) == 0:
+        return
+
+    container = st.container()
+    if st.session_state[BOT_MESSAGES]:
+        with container:
+            for i in range(len(st.session_state[BOT_MESSAGES]) - 1, -1, -1):
+                message(st.session_state[BOT_MESSAGES][i], key=str(i))
+                message(
+                    st.session_state[USR_MESSAGES][i],
+                    is_user=True,
+                    key=str(i) + "_usr",
+                )
+
+
+def image_view():
+    emotions = st.session_state[EMOTIONS]
+    read_index = st.session_state[READ_INDEX]
+    if read_index is None:
+        text = ""
+    else:
+        text = st.session_state[BOT_MESSAGES][read_index]
+
+    image = get_image(emotions)
+    col1, col2, col3 = st.columns([1, 6, 1])
+    with col1:
+        st.write("")
+    with col2:
+        st.write("")
+        st.image(image, caption=text, width=500)
+    with col3:
+        st.write("")
+
+
+def voice_options():
+    speakers = {
+        "四国めたん（あまあま）": 0,
+        "四国めたん（ノーマル）": 2,
+        "四国めたん（ツンツン）": 6,
+        "四国めたん（セクシー）": 4,
+        "ずんだもん（ノーマル）": 3,
+        "ずんだもん（あまあま）": 1,
+        "ずんだもん（ツンツン）": 7,
+        "ずんだもん（セクシー）": 5,
+        "春日部つむぎ（ノーマル）": 8,
+        "雨晴はう（ノーマル）": 10,
+        "玄野武宏（ノーマル）": 11,
+        "白上虎太郎（ノーマル）": 12,
+        "青山龍星（ノーマル）": 13,
+        "冥鳴ひまり（ノーマル）": 14,
+        "九州そら（あまあま）": 15,
+        "九州そら（ツンツン）": 18,
+        "九州そら（セクシー）": 17,
+        "九州そら（ささやき）": 19,
+    }
+    option = st.selectbox(
+        "音声",
+        (list(speakers.keys())),
+        index=4,
+        label_visibility=st.session_state.visibility,
+        disabled=st.session_state.disabled,
+    )
+    if st.session_state != speakers[option]:
+        st.session_state[SPEAKER_ID] = speakers[option]
+    return st.session_state[SPEAKER_ID]
+
+
+def mode_options():
+    modes = ["image", "chat"]
+    view_mode = st.radio(
+        "モード選択",
+        modes,
+        index=st.session_state[MODE_INDEX],
+        label_visibility=st.session_state.visibility,
+        disabled=st.session_state.disabled,
+    )
+    st.session_state[MODE_INDEX] = modes.index(view_mode)
+    return view_mode
+
+
+def feautre_option():
+    feature = st.selectbox(
+        "口調",
+        (ChatGPTFeature.get_values()),
+        index=st.session_state[FEATURE_INDEX],
+        label_visibility=st.session_state.visibility,
+        disabled=st.session_state.disabled,
+    )
+    st.session_state[FEATURE_INDEX] = ChatGPTFeature.index(feature)
+    feature = ChatGPTFeature.value_of(feature)
+    return feature
 
 
 def app():
     image = Image.open("images/zunda-icon.png")
     st.set_page_config(page_title="michat - DEMO", page_icon=image)
     st.title("michat")
-    st.subheader("美少女アシスタント - micha")
 
-    st_webrtc_logger = logging.getLogger("streamlit_webrtc")
-    st_webrtc_logger.setLevel(logging.INFO)
+    logger = get_logger("streamlit_webrtc")
+    logger.setLevel(logging.INFO)
+
+    session_init()
+
+    with st.sidebar:
+        view_mode = mode_options()
+        speaker_id = voice_options()
+        feature = feautre_option()
+
+    if view_mode == "chat":
+        chat_view()
+    elif view_mode == "image":
+        image_view()
 
     webrtc = WebRTCRecorder()
-    webrtc.mode_options()
-    webrtc.voice_options()
-    webrtc.feautre_option()
-
-    webrtc.context()
-    webrtc.listen()
-    webrtc.to_text()
-    generated, emotions = webrtc.generate_and_play()
-
-    if webrtc.mode == "chat":
-        webrtc.chat_view()
-    else:
-        webrtc.image(generated, emotions)
+    logger.debug("session_state: {}".format(st.session_state))
+    logger.debug("player state: {}".format(webrtc.webrtc_ctx.state))
+    webrtc.listen()  # busy loop here
+    generated, emotions = webrtc.generate_and_play(speaker_id, feature)
+    logger.info("generated: {}".format(generated))
+    logger.info("emotions: {}".format(emotions))
 
 
 if __name__ == "__main__":
