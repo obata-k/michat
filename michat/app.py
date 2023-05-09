@@ -31,7 +31,7 @@ VISIBILITY = "visibility"
 RERUNED = "reruned"
 
 logger = get_logger("streamlit_webrtc")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 def session_init():
@@ -239,7 +239,7 @@ def chat_view():
 def image_view():
     emotions = st.session_state[EMOTIONS]
     gen_index = st.session_state[GENERATED_INDEX]
-    logger.debug(st.session_state[BOT_MESSAGES])
+    logger.debug("bot messages: {}".format(st.session_state[BOT_MESSAGES]))
     if gen_index is None:
         text = ""
     else:
