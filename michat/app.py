@@ -272,11 +272,17 @@ def voice_options():
         "九州そら（セクシー）": 17,
         "九州そら（ささやき）": 19,
     }
+
+    def speakers_state_update():
+        st.session_state[SPEAKER_ID] = speakers[st.session_state.speakers_selectbox]
+
     option = st.selectbox(
         "音声",
         (list(speakers.keys())),
+        key="speakers_selectbox",
         index=4,
         label_visibility=st.session_state.visibility,
+        on_change=speakers_state_update,
         disabled=st.session_state.disabled,
     )
     if st.session_state != speakers[option]:
@@ -286,11 +292,17 @@ def voice_options():
 
 def mode_options():
     modes = ["image", "chat"]
+
+    def mode_state_update():
+        st.session_state[MODE_INDEX] = modes.index(st.session_state.mode_radio)
+
     view_mode = st.radio(
         "モード選択",
         modes,
+        key="mode_radio",
         index=st.session_state[MODE_INDEX],
         label_visibility=st.session_state.visibility,
+        on_change=mode_state_update,
         disabled=st.session_state.disabled,
     )
     st.session_state[MODE_INDEX] = modes.index(view_mode)
@@ -298,11 +310,18 @@ def mode_options():
 
 
 def feautre_option():
+    def feature_state_update():
+        st.session_state[FEATURE_INDEX] = ChatGPTFeature.index(
+            st.session_state.feature_selectbox
+        )
+
     feature = st.selectbox(
         "口調",
         (ChatGPTFeature.get_values()),
+        key="feature_selectbox",
         index=st.session_state[FEATURE_INDEX],
         label_visibility=st.session_state.visibility,
+        on_change=feature_state_update,
         disabled=st.session_state.disabled,
     )
     st.session_state[FEATURE_INDEX] = ChatGPTFeature.index(feature)
