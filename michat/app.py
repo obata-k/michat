@@ -20,6 +20,7 @@ from streamlit_webrtc import WebRtcMode, webrtc_streamer
 AUDIO_BUFFER = "audio_buffer"
 BOT_MESSAGES = "bot_messages"
 USR_MESSAGES = "usr_messages"
+GENERATED_INDEX = "generated_index"
 READ_INDEX = "read_index"
 SPEAKER_ID = "speaker_id"
 MODE_INDEX = "mode_index"
@@ -27,9 +28,13 @@ EMOTIONS = "emotions"
 FEATURE_INDEX = "feature_index"
 HISTORY = "history"
 VISIBILITY = "visibility"
+RERUNED = "reruned"
 
 # chatgpt response to wav
 OUTPUT = Path("output.wav")
+
+logger = get_logger("streamlit_webrtc")
+logger.setLevel(logging.INFO)
 
 
 def session_init():
@@ -49,8 +54,12 @@ def session_init():
         st.session_state[FEATURE_INDEX] = 0
     if HISTORY not in st.session_state:
         st.session_state[HISTORY] = []
+    if GENERATED_INDEX not in st.session_state:
+        st.session_state[GENERATED_INDEX] = None
     if READ_INDEX not in st.session_state:
         st.session_state[READ_INDEX] = None
+    if RERUNED not in st.session_state:
+        st.session_state[RERUNED] = False
     if VISIBILITY not in st.session_state:
         st.session_state.visibility = "visible"
         st.session_state.disabled = False
@@ -116,17 +125,16 @@ class WebRTCRecorder:
             <source src="%s" type="audio/ogg" autoplay=True>
             Your browser does not support the audio element.
             </audio>
-        """
+            """
             % audio_str
         )
         audio_placeholder.empty()
         audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
 
-    def generate_and_play(self, speaker_id, feature):
+    def generate(self, feature):
         audio_buffer = st.session_state[AUDIO_BUFFER]
         ts = AudioTranscriber()
         chat = ChatGPTWithEmotion(self.max_token_size)
-        speaker = Audio(speaker_id)
         history = st.session_state[HISTORY][-6:]  # 最新6件
 
         if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
@@ -144,20 +152,34 @@ class WebRTCRecorder:
                 # generate text
                 system = system_text(feature)
                 generated, history, emotions = chat.generate(system, user_text, history)
-                # play audio
-                speaker.transform(generated)
-                speaker.save_wav(OUTPUT)
-                self.__background_play(OUTPUT)
-                st.session_state[READ_INDEX] = len(st.session_state[BOT_MESSAGES])
                 st.session_state[BOT_MESSAGES].append(generated)
+                st.session_state[GENERATED_INDEX] = len(st.session_state[BOT_MESSAGES])
+                st.session_state[READ_INDEX] = len(st.session_state[BOT_MESSAGES]) - 1
             except Exception as e:
-                st.error(f"Error while generating and playing: {e}")
+                st.error(f"Error while generating: {e}")
 
             st.session_state[EMOTIONS] = emotions
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
             return (generated, emotions)
         else:
             return (None, None)
+
+    def audio_play(self, speaker_id):
+        if (
+            len(st.session_state[BOT_MESSAGES]) == 0
+            or st.session_state[READ_INDEX] is None
+            or self.webrtc_ctx.state.playing
+        ):
+            return
+        read_index = st.session_state[GENERATED_INDEX] - 1
+        logger.debug("now plaing [index: {}]".format(read_index))
+        text = st.session_state[BOT_MESSAGES][read_index]
+        # play audio
+        speaker = Audio(speaker_id)
+        speaker.transform(text)
+        speaker.save_wav(OUTPUT)
+        self.__background_play(OUTPUT)
+        st.session_state[READ_INDEX] = st.session_state[GENERATED_INDEX]
 
 
 def max_emotion(emotions=None) -> str:
@@ -200,22 +222,23 @@ def chat_view():
     container = st.container()
     if st.session_state[BOT_MESSAGES]:
         with container:
-            for i in range(len(st.session_state[BOT_MESSAGES]) - 1, -1, -1):
-                message(st.session_state[BOT_MESSAGES][i], key=str(i))
+            for i in range(len(st.session_state[BOT_MESSAGES])):
                 message(
                     st.session_state[USR_MESSAGES][i],
                     is_user=True,
                     key=str(i) + "_usr",
                 )
+                message(st.session_state[BOT_MESSAGES][i], key=str(i))
 
 
 def image_view():
     emotions = st.session_state[EMOTIONS]
-    read_index = st.session_state[READ_INDEX]
-    if read_index is None:
+    gen_index = st.session_state[GENERATED_INDEX]
+    logger.debug(st.session_state[BOT_MESSAGES])
+    if gen_index is None:
         text = ""
     else:
-        text = st.session_state[BOT_MESSAGES][read_index]
+        text = st.session_state[BOT_MESSAGES][gen_index - 1]
 
     image = get_image(emotions)
     col1, col2, col3 = st.columns([1, 6, 1])
@@ -292,9 +315,6 @@ def app():
     st.set_page_config(page_title="michat - DEMO", page_icon=image)
     st.title("michat")
 
-    logger = get_logger("streamlit_webrtc")
-    logger.setLevel(logging.INFO)
-
     session_init()
 
     with st.sidebar:
@@ -311,9 +331,35 @@ def app():
     logger.debug("session_state: {}".format(st.session_state))
     logger.debug("player state: {}".format(webrtc.webrtc_ctx.state))
     webrtc.listen()  # busy loop here
-    generated, emotions = webrtc.generate_and_play(speaker_id, feature)
+    generated, emotions = webrtc.generate(feature)
     logger.info("generated: {}".format(generated))
     logger.info("emotions: {}".format(emotions))
+
+    generated_index = st.session_state[GENERATED_INDEX]
+    read_index = st.session_state[READ_INDEX]
+    logger.debug("main:read_index: {}".format(read_index))
+    logger.debug("main:gen_index: {}".format(generated_index))
+
+    # re-reder view
+    # TODO: are there any other good way??
+    if (
+        generated_index is not None
+        and read_index is not None
+        and generated_index > read_index
+        and not st.session_state[RERUNED]
+    ):
+        st.session_state[RERUNED] = True
+        st.experimental_rerun()
+        # not excecuted here
+    else:
+        st.session_state[RERUNED] = False
+
+    if (
+        generated_index is not None
+        and read_index is not None
+        and generated_index > read_index
+    ):
+        webrtc.audio_play(speaker_id)
 
 
 if __name__ == "__main__":
