@@ -33,8 +33,8 @@ COPY --chown=$USERNAME:$USERNAME . .
 ARG PYTHON_PKG=/app/pkg
 
 # download libraries
-ARG VOICEVOX_WHL_URL="https://github.com/VOICEVOX/voicevox_core/releases/download/0.14.3/voicevox_core-0.14.3+cpu-cp38-abi3-linux_aarch64.whl"
-ARG ONNXRUNTIME_URL="https://github.com/microsoft/onnxruntime/releases/download/v1.13.1/onnxruntime-linux-aarch64-1.13.1.tgz"
+ARG VOICEVOX_WHL_URL="https://github.com/VOICEVOX/voicevox_core/releases/download/0.14.3/voicevox_core-0.14.3+cpu-cp38-abi3-linux_x86_64.whl"
+ARG ONNXRUNTIME_URL="https://github.com/microsoft/onnxruntime/releases/download/v1.13.1/onnxruntime-linux-x64-1.13.1.tgz"
 ARG OPEN_JTALK_URL="http://sourceforge.net/projects/open-jtalk/files/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz"
 RUN wget $VOICEVOX_WHL_URL \
     && wget $ONNXRUNTIME_URL \
