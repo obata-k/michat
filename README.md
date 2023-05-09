@@ -25,6 +25,11 @@ ChatGPTの出力を初音ミクやカゲプロのエネっぽい口調で音声�
 See the version of other python packeges in `requirements.txt` or `pyproject.toml`.
 In the container environment, `requirements.txt` is preferred.
 
+## Setup
+
+You need Open AI API key to run this app.
+Please generate a API key in [this page](https://platform.openai.com/account/api-keys), and set it to `OPENAI_API_KEY` environmental variable.
+
 ## Usage
 
 ### CLI
@@ -57,4 +62,20 @@ options:
 
 ```
 $ streamlit run michat/app.py
+```
+
+## Development
+
+### Docker Container
+
+* build from Dockerfile
+
+```
+$ docker build . -t michat -f Dockerfile
+```
+
+* create and run a container
+
+```
+$ docker run --rm -p 8080:8080 -e OPENAI_API_KEY="<your-api-key>" -d -it michat
 ```
