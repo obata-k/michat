@@ -55,4 +55,3 @@ HEALTHCHECK --interval=1m --timeout=3s \
     CMD curl --fail http://localhost:8080 || exit 1
 
 ENTRYPOINT ["streamlit", "run", "michat/app.py", "--global.developmentMode=false", "--server.port=8080", "--server.address=0.0.0.0"]
-# ENTRYPOINT ["/bin/bash", "-c"]
