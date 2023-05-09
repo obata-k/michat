@@ -31,7 +31,7 @@ VISIBILITY = "visibility"
 RERUNED = "reruned"
 
 logger = get_logger("streamlit_webrtc")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 def session_init():
@@ -65,6 +65,7 @@ def session_init():
 class WebRTCRecorder:
     def __init__(self):
         self.max_token_size = 512  # const
+        self.audio_receiver_size = 1024  # const
 
         self.webrtc_ctx = webrtc_streamer(
             key="michat",
@@ -73,8 +74,9 @@ class WebRTCRecorder:
                 "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
             },
             media_stream_constraints={"video": False, "audio": True},
-            audio_receiver_size=1024,
+            audio_receiver_size=self.audio_receiver_size,
         )
+        logger.debug("audio_receiver_size: {}".format(self.audio_receiver_size))
 
     def listen(self):
         self.status_box = st.empty()
@@ -83,6 +85,7 @@ class WebRTCRecorder:
             return
 
         self.status_box.info("Loading...")
+        logger.info("listening to user voice")
 
         while True:
             if self.webrtc_ctx.audio_receiver:
@@ -114,6 +117,7 @@ class WebRTCRecorder:
         ts = AudioTranscriber()
         chat = ChatGPTWithEmotion(self.max_token_size)
         history = st.session_state[HISTORY][-6:]  # 最新6件
+        st.session_state[HISTORY] = history
 
         if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
             try:
@@ -123,18 +127,23 @@ class WebRTCRecorder:
                 # transcript
                 user_text = ts.listen(wav_bytes)
                 st.session_state[USR_MESSAGES].append(user_text)
+                logger.info("user text: {}".format(user_text))
             except Exception as e:
                 st.error(f"Error while transcripting: {e}")
+                logger.error("while transcripting: {}".format(e))
 
             try:
                 # generate text
                 system = system_text(feature)
                 generated, history, emotions = chat.generate(system, user_text, history)
+                logger.info("generated: {}".format(generated))
+                logger.info("emotions: {}".format(emotions))
                 st.session_state[BOT_MESSAGES].append(generated)
                 st.session_state[GENERATED_INDEX] = len(st.session_state[BOT_MESSAGES])
                 st.session_state[READ_INDEX] = len(st.session_state[BOT_MESSAGES]) - 1
             except Exception as e:
                 st.error(f"Error while generating: {e}")
+                logger.error("while generating: {}".format(e))
 
             st.session_state[EMOTIONS] = emotions
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
@@ -167,7 +176,7 @@ class WebRTCRecorder:
         ):
             return
         read_index = st.session_state[GENERATED_INDEX] - 1
-        logger.debug("now plaing [index: {}]".format(read_index))
+        logger.debug("now plaing on index: {}".format(read_index))
         text = st.session_state[BOT_MESSAGES][read_index]
         # play audio
         speaker = Audio(speaker_id)
@@ -201,6 +210,7 @@ def emotion_image_path(emotion: str):
 
 def get_image(emotions: dict):
     max_emotion_str = max_emotion(emotions)
+    logger.debug("max emotion: {}".format(max_emotion_str))
     if (
         emotions is None
         or max_emotion_str not in emotions
@@ -335,6 +345,9 @@ def app():
         view_mode = mode_options()
         speaker_id = voice_options()
         feature = feautre_option()
+    logger.debug("mode: {}".format(view_mode))
+    logger.debug("speaker id: {}".format(speaker_id))
+    logger.debug("feature: {}".format(feature))
 
     if view_mode == "chat":
         chat_view()
@@ -342,17 +355,16 @@ def app():
         image_view()
 
     webrtc = WebRTCRecorder()
+    logger.debug("max token size: {}".format(webrtc.max_token_size))
     logger.debug("session_state: {}".format(st.session_state))
     logger.debug("player state: {}".format(webrtc.webrtc_ctx.state))
     webrtc.listen()  # busy loop here
     generated, emotions = webrtc.generate(feature)
-    logger.info("generated: {}".format(generated))
-    logger.info("emotions: {}".format(emotions))
 
     generated_index = st.session_state[GENERATED_INDEX]
     read_index = st.session_state[READ_INDEX]
-    logger.debug("main:read_index: {}".format(read_index))
-    logger.debug("main:gen_index: {}".format(generated_index))
+    logger.debug("generated_index: {}".format(generated_index))
+    logger.debug("read_index: {}".format(read_index))
 
     # re-reder view
     # TODO: are there any other good way??
