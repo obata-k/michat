@@ -31,7 +31,7 @@ VISIBILITY = "visibility"
 RERUNED = "reruned"
 
 logger = get_logger("streamlit_webrtc")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 def session_init():
