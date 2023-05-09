@@ -42,9 +42,9 @@ class ChatGPTFeature(Enum):
 class ChatGPT:
     def __init__(self, max_token_size):
         self.__max_token_size = max_token_size
-        env_root = Path(os.getcwd())
-        dotenv_path = os.path.join(env_root, ".env")
-        load_dotenv(dotenv_path)
+        dotenv_path = Path(os.path.join(os.getcwd(), ".env"))
+        if dotenv_path.exists():
+            load_dotenv(dotenv_path)
         openai.api_key = os.environ.get("OPENAI_API_KEY")
 
     @property
