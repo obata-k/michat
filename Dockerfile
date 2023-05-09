@@ -14,6 +14,7 @@ RUN groupadd --gid $USER_GID $GROUPNAME \
     software-properties-common \
     git \
     portaudio19-dev python3-pyaudio \
+    pkg-config \
     libcairo2-dev libgirepository1.0-dev \
     ffmpeg \
     flac \
