@@ -28,7 +28,7 @@ FEATURE_INDEX = "feature_index"
 HISTORY = "history"
 VISIBILITY = "visibility"
 
-# chatgpt
+# chatgpt response to wav
 OUTPUT = Path("output.wav")
 
 
@@ -137,6 +137,10 @@ class WebRTCRecorder:
                 # transcript
                 user_text = ts.listen(wav_bytes)
                 st.session_state[USR_MESSAGES].append(user_text)
+            except Exception as e:
+                st.error(f"Error while transcripting: {e}")
+
+            try:
                 # generate text
                 system = system_text(feature)
                 generated, history, emotions = chat.generate(system, user_text, history)
@@ -147,7 +151,7 @@ class WebRTCRecorder:
                 st.session_state[READ_INDEX] = len(st.session_state[BOT_MESSAGES])
                 st.session_state[BOT_MESSAGES].append(generated)
             except Exception as e:
-                st.error(f"Error while transcripting: {e}")
+                st.error(f"Error while generating and playing: {e}")
 
             st.session_state[EMOTIONS] = emotions
             st.session_state[AUDIO_BUFFER] = pydub.AudioSegment.empty()
@@ -289,7 +293,7 @@ def app():
     st.title("michat")
 
     logger = get_logger("streamlit_webrtc")
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 
     session_init()
 
