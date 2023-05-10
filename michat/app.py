@@ -120,6 +120,7 @@ class WebRTCRecorder:
         st.session_state[HISTORY] = history
 
         if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
+            st.info("（考え中...）")
             try:
                 # create wev
                 wav_bytes = io.BytesIO()
