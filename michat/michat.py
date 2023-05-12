@@ -3,8 +3,8 @@ from pathlib import Path
 
 import speech_recognition as sr
 
-from michat.speak import Audio, ChatGPT, setup_log
-from michat.transcript import VoiceTranscriber
+from lib.speak import Audio, ChatGPT, setup_log
+from lib.transcript import VoiceTranscriber
 
 
 def main():
