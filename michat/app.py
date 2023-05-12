@@ -31,7 +31,7 @@ VISIBILITY = "visibility"
 RERUNED = "reruned"
 
 logger = get_logger("streamlit_webrtc")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 def session_init():
@@ -120,6 +120,7 @@ class WebRTCRecorder:
         st.session_state[HISTORY] = history
 
         if not self.webrtc_ctx.state.playing and len(audio_buffer) > 0:
+            st.info("（考え中...）")
             try:
                 # create wev
                 wav_bytes = io.BytesIO()
@@ -239,7 +240,7 @@ def chat_view():
 def image_view():
     emotions = st.session_state[EMOTIONS]
     gen_index = st.session_state[GENERATED_INDEX]
-    logger.debug(st.session_state[BOT_MESSAGES])
+    logger.debug("bot messages: {}".format(st.session_state[BOT_MESSAGES]))
     if gen_index is None:
         text = ""
     else:

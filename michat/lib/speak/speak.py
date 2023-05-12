@@ -12,6 +12,7 @@ from voicevox_core import AccelerationMode, VoicevoxCore
 
 open_jtalk_dict_dir = "./open_jtalk_dic_utf_8-1.11"
 acceleration_mode = AccelerationMode.AUTO
+system_root = Path("system")
 
 
 class ChatGPTFeature(Enum):
@@ -99,7 +100,7 @@ class ChatGPT:
 class ChatGPTWithEmotion(ChatGPT):
     def __init__(self, max_token_size):
         super().__init__(max_token_size)
-        self.system_emotion = "system-emotion.txt"
+        self.system_emotion = system_root / Path("system-emotion.txt")
 
     def trim_and_parse(self, text):
         lines = []
@@ -177,6 +178,6 @@ def system_text(feature=ChatGPTFeature.ZUNDAMON):
     else:
         raise ValueError("invalid ChatGPT feature was set")
 
-    with open(system, "r") as f:
+    with open(system_root / system, "r") as f:
         text = f.read()
     return text
